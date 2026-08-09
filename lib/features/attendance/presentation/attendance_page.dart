@@ -151,19 +151,6 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           ],
         ),
       ),
-      if (wide) ...[
-        OutlinedButton.icon(
-          onPressed: () {},
-          icon: const Icon(LucideIcons.fileText, size: 17),
-          label: const Text('PDF'),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton.icon(
-          onPressed: () {},
-          icon: const Icon(LucideIcons.sheet, size: 17),
-          label: const Text('Excel'),
-        ),
-      ],
     ],
   );
 }

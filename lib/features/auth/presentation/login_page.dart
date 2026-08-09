@@ -182,38 +182,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   _LoginError(message: session.errorMessage!),
                                 ],
                                 const SizedBox(height: 14),
-                                Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 40,
-                                      height: 40,
-                                      child: Checkbox(
-                                        value: true,
-                                        onChanged: (_) {},
-                                      ),
-                                    ),
-                                    const Text(
-                                      'Recordarme',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () {},
-                                          child: const Text(
-                                            '¿Olvidó su contraseña?',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
                                 ElevatedButton.icon(
                                   onPressed: busy ? null : _submit,
                                   icon: AnimatedSwitcher(

@@ -9,11 +9,44 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class StudentHistoryPage extends ConsumerWidget {
+class StudentHistoryPage extends ConsumerStatefulWidget {
   const StudentHistoryPage({super.key, required this.studentId});
   final String studentId;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudentHistoryPage> createState() => _StudentHistoryPageState();
+}
+
+class _StudentHistoryPageState extends ConsumerState<StudentHistoryPage> {
+  List<AttendanceRecord>? records;
+  Object? loadError;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_load);
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      loading = true;
+      loadError = null;
+    });
+    try {
+      final loaded = await ref
+          .read(attendanceRepositoryProvider)
+          .getStudentHistory(widget.studentId);
+      if (mounted) setState(() => records = loaded);
+    } on Object catch (error) {
+      if (mounted) setState(() => loadError = error);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -22,24 +55,42 @@ class StudentHistoryPage extends ConsumerWidget {
           icon: const Icon(LucideIcons.arrowLeft),
         ),
         title: const Text('Historial del estudiante'),
-        actions: [
-          IconButton(
-            tooltip: 'Buscar estudiante',
-            onPressed: () {},
-            icon: const Icon(LucideIcons.search),
-          ),
-        ],
       ),
-      body: FutureBuilder<List<AttendanceRecord>>(
-        future: ref
-            .read(attendanceRepositoryProvider)
-            .getStudentHistory(studentId),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+      body: Builder(
+        builder: (context) {
+          if (loading) {
             return const Center(child: CircularProgressIndicator());
           }
-          final records = snapshot.data!;
-          final student = records.first.student;
+          if (loadError != null) {
+            return _HistoryMessage(
+              icon: LucideIcons.cloudOff,
+              title: 'No se pudo cargar el historial',
+              actionLabel: 'Reintentar',
+              onAction: _load,
+            );
+          }
+          final loadedRecords = records ?? const <AttendanceRecord>[];
+          if (loadedRecords.isEmpty) {
+            return const _HistoryMessage(
+              icon: LucideIcons.calendarX2,
+              title: 'Este estudiante todavía no tiene registros.',
+            );
+          }
+          final student = loadedRecords.first.student;
+          final punctual = loadedRecords
+              .where((record) => record.status == AttendanceStatus.punctual)
+              .length;
+          final late = loadedRecords
+              .where((record) => record.status == AttendanceStatus.late)
+              .length;
+          final absent = loadedRecords
+              .where((record) => record.status == AttendanceStatus.absent)
+              .length;
+          final punctuality = (punctual * 100 / loadedRecords.length).round();
+          final period = DateFormat(
+            'MMMM yyyy',
+            'es',
+          ).format(loadedRecords.first.timestamp);
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -90,24 +141,11 @@ class StudentHistoryPage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                initialValue: 'agosto',
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Periodo',
-                  prefixIcon: Icon(LucideIcons.calendarDays, size: 18),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'agosto', child: Text('Agosto 2026')),
-                ],
-                onChanged: (_) {},
-              ),
-              const SizedBox(height: 12),
-              const Row(
+              Row(
                 children: [
                   Expanded(
                     child: _HistoryMetric(
-                      value: '92%',
+                      value: '$punctuality%',
                       label: 'Puntualidad',
                       color: AppColors.green,
                     ),
@@ -115,7 +153,7 @@ class StudentHistoryPage extends ConsumerWidget {
                   SizedBox(width: 8),
                   Expanded(
                     child: _HistoryMetric(
-                      value: '2',
+                      value: '$late',
                       label: 'Atrasos',
                       color: AppColors.amber,
                     ),
@@ -123,7 +161,7 @@ class StudentHistoryPage extends ConsumerWidget {
                   SizedBox(width: 8),
                   Expanded(
                     child: _HistoryMetric(
-                      value: '1',
+                      value: '$absent',
                       label: 'Ausencia',
                       color: AppColors.red,
                     ),
@@ -132,11 +170,11 @@ class StudentHistoryPage extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Registros de agosto',
+                'Registros de $period',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              for (final record in records)
+              for (final record in loadedRecords)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -194,6 +232,43 @@ class StudentHistoryPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _HistoryMessage extends StatelessWidget {
+  const _HistoryMessage({
+    required this.icon,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 36, color: AppColors.inkMuted),
+          const SizedBox(height: 12),
+          Text(title, textAlign: TextAlign.center),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onAction,
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
+              label: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class _HistoryMetric extends StatelessWidget {
