@@ -390,7 +390,7 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
     final rows = (config.endMinutes - config.startMinutes) ~/ 30;
     const gutterWidth = 76.0;
     const dayWidth = 184.0;
-    const matrixWidth = gutterWidth + dayWidth * 5;
+    const matrixWidth = gutterWidth + dayWidth * 7;
     final bodyHeight = rows * rowHeight;
     return Scrollbar(
       child: SingleChildScrollView(
@@ -405,7 +405,7 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                 child: Row(
                   children: [
                     const SizedBox(width: gutterWidth),
-                    for (var day = 1; day <= 5; day += 1)
+                    for (var day = 1; day <= 7; day += 1)
                       Container(
                         width: dayWidth,
                         alignment: Alignment.center,
@@ -462,7 +462,7 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                             ],
                           ),
                         ),
-                        for (var day = 1; day <= 5; day += 1)
+                        for (var day = 1; day <= 7; day += 1)
                           _DayColumn(
                             width: dayWidth,
                             height: bodyHeight,
@@ -790,7 +790,7 @@ class _MobileDaySchedule extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: SegmentedButton<int>(
             segments: [
-              for (var day = 1; day <= 5; day += 1)
+              for (var day = 1; day <= 7; day += 1)
                 ButtonSegment(
                   value: day,
                   label: Text(weekdayLabels[day]!.substring(0, 3)),
