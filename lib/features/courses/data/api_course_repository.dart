@@ -78,12 +78,7 @@ class ApiCourseRepository implements CourseRepository {
     ScheduleDraft draft,
   ) async {
     try {
-      final data = {
-        'jornada': draft.shift,
-        'horaLimite': draft.deadline,
-        'toleranciaMinutos': draft.toleranceMinutes,
-        'zonaHoraria': draft.timeZone,
-      };
+      final data = {'jornada': draft.shift, 'horaLimite': draft.deadline};
       final response = scheduleId == null
           ? await _client.dio.post<Map<String, dynamic>>(
               '/cursos/$courseId/horarios',

@@ -564,7 +564,7 @@ class _EntryScheduleSummary extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         Text(
-          '${first.toleranceMinutes} min de tolerancia'
+          'Hora límite de ingreso'
           '${schedules.length > 1 ? ' · +${schedules.length - 1}' : ''}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -659,10 +659,7 @@ class _EntrySchedulesDialogState extends State<_EntrySchedulesDialog> {
                       '${schedule.shiftLabel} · ${schedule.deadline}',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    subtitle: Text(
-                      '${schedule.toleranceMinutes} min de tolerancia · ${schedule.timeZone}',
-                      maxLines: 2,
-                    ),
+                    subtitle: Text('Hora límite de ingreso', maxLines: 2),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -781,8 +778,6 @@ class _EntryScheduleFormDialog extends StatefulWidget {
 
 class _EntryScheduleFormDialogState extends State<_EntryScheduleFormDialog> {
   final formKey = GlobalKey<FormState>();
-  late final TextEditingController tolerance;
-  late final TextEditingController timeZone;
   late String shift;
   late String deadline;
 
@@ -791,36 +786,23 @@ class _EntryScheduleFormDialogState extends State<_EntryScheduleFormDialog> {
     super.initState();
     shift = widget.schedule?.shift ?? 'MANANA';
     deadline = widget.schedule?.deadline ?? '08:00';
-    tolerance = TextEditingController(
-      text: (widget.schedule?.toleranceMinutes ?? 5).toString(),
-    );
-    timeZone = TextEditingController(
-      text: widget.schedule?.timeZone ?? 'America/La_Paz',
-    );
-  }
-
-  @override
-  void dispose() {
-    tolerance.dispose();
-    timeZone.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: AppDialogHeader(
       title: widget.schedule == null ? 'Nuevo horario' : 'Editar horario',
-      subtitle: 'Jornada, hora límite y tolerancia de ingreso',
+      subtitle: 'Hora límite de ingreso por jornada',
     ),
     content: SizedBox(
       width: 520,
       child: Form(
         key: formKey,
         child: SingleChildScrollView(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 420;
-              final shiftField = DropdownButtonFormField<String>(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
                 initialValue: shift,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Jornada'),
@@ -830,72 +812,27 @@ class _EntryScheduleFormDialogState extends State<_EntryScheduleFormDialog> {
                   DropdownMenuItem(value: 'NOCHE', child: Text('Noche')),
                 ],
                 onChanged: (value) => shift = value ?? shift,
-              );
-              final toleranceField = TextFormField(
-                controller: tolerance,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Tolerancia',
-                  suffixText: 'min',
+              ),
+              const SizedBox(height: 12),
+              FormField<String>(
+                initialValue: deadline,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Selecciona la hora límite.'
+                    : null,
+                builder: (field) => InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => _pickTime(field),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Hora límite',
+                      errorText: field.errorText,
+                      suffixIcon: const Icon(LucideIcons.clock3, size: 18),
+                    ),
+                    child: Text(deadline),
+                  ),
                 ),
-                validator: (value) {
-                  final parsed = int.tryParse(value ?? '');
-                  return parsed == null || parsed < 0 || parsed > 120
-                      ? 'Usa un valor entre 0 y 120.'
-                      : null;
-                },
-              );
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (compact) ...[
-                    shiftField,
-                    const SizedBox(height: 12),
-                    toleranceField,
-                  ] else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: shiftField),
-                        const SizedBox(width: 12),
-                        Expanded(child: toleranceField),
-                      ],
-                    ),
-                  const SizedBox(height: 12),
-                  FormField<String>(
-                    initialValue: deadline,
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Selecciona la hora límite.'
-                        : null,
-                    builder: (field) => InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () => _pickTime(field),
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'Hora límite',
-                          errorText: field.errorText,
-                          suffixIcon: const Icon(LucideIcons.clock3, size: 18),
-                        ),
-                        child: Text(deadline),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: timeZone,
-                    maxLength: 80,
-                    decoration: const InputDecoration(
-                      labelText: 'Zona horaria',
-                      prefixIcon: Icon(LucideIcons.globe2, size: 18),
-                    ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Ingresa la zona horaria.'
-                        : null,
-                  ),
-                ],
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
@@ -934,12 +871,7 @@ class _EntryScheduleFormDialogState extends State<_EntryScheduleFormDialog> {
     if (!formKey.currentState!.validate()) return;
     Navigator.pop(
       context,
-      ScheduleDraft(
-        shift: shift,
-        deadline: deadline,
-        toleranceMinutes: int.parse(tolerance.text),
-        timeZone: timeZone.text.trim(),
-      ),
+      ScheduleDraft(shift: shift, deadline: deadline, toleranceMinutes: 0),
     );
   }
 }
