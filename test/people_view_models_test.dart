@@ -75,6 +75,18 @@ void main() {
     expect(students.error, 'No se pudieron cargar los cursos');
     expect(teachers.error, 'No se pudieron cargar los cursos');
   });
+
+  test('filtra estudiantes por curso sin perder la busqueda', () async {
+    final repository = _PeopleRepository();
+    final model = StudentsViewModel(repository);
+
+    model.search('Valeria');
+    await model.filterCourse('course-1');
+
+    expect(repository.lastStudentSearch, 'Valeria');
+    expect(repository.lastStudentCourseId, 'course-1');
+    model.dispose();
+  });
 }
 
 class _PeopleRepository implements PeopleRepository {
@@ -83,6 +95,8 @@ class _PeopleRepository implements PeopleRepository {
   final bool failCourses;
   final students = <StudentEntry>[];
   final teachers = <TeacherEntry>[];
+  String? lastStudentSearch;
+  String? lastStudentCourseId;
   static const course = CourseOption(id: 'course-1', name: '4. Secundaria B');
 
   @override
@@ -94,7 +108,14 @@ class _PeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<List<StudentEntry>> getStudents({String? search}) async => students;
+  Future<List<StudentEntry>> getStudents({
+    String? search,
+    String? courseId,
+  }) async {
+    lastStudentSearch = search;
+    lastStudentCourseId = courseId;
+    return students;
+  }
 
   @override
   Future<StudentEntry> createStudent(StudentDraft draft) async {

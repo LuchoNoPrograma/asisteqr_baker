@@ -8,22 +8,32 @@ void main() {
     () async {
       final repository = _ReportRepository();
       final model = ReportExportViewModel(repository);
+      final selectedDate = DateTime(2025, 4, 16);
 
-      await model.load('Semanal', selectedCourseId: 'course-1');
+      await model.load(
+        'Semanal',
+        selectedCourseId: 'course-1',
+        referenceDate: selectedDate,
+      );
 
       expect(model.loading, isFalse);
       expect(model.summary?.totalRecords, 8);
       expect(repository.summaryCourseId, 'course-1');
+      expect(repository.summaryFrom, DateTime(2025, 4, 14));
+      expect(repository.summaryTo, DateTime(2025, 4, 20));
       expect(await model.export('Semanal'), isTrue);
       expect(repository.exportCourseId, 'course-1');
       expect(repository.exportFrom, repository.summaryFrom);
       expect(repository.exportTo, repository.summaryTo);
 
-      await model.load('Mensual', selectedCourseId: 'course-1');
+      await model.load(
+        'Mensual',
+        selectedCourseId: 'course-1',
+        referenceDate: selectedDate,
+      );
 
-      final now = DateTime.now();
-      expect(repository.summaryFrom, DateTime(now.year, now.month));
-      expect(repository.summaryTo, DateTime(now.year, now.month + 1, 0));
+      expect(repository.summaryFrom, DateTime(2025, 4));
+      expect(repository.summaryTo, DateTime(2025, 4, 30));
       expect(await model.export('Mensual'), isTrue);
       expect(repository.exportFrom, repository.summaryFrom);
       expect(repository.exportTo, repository.summaryTo);

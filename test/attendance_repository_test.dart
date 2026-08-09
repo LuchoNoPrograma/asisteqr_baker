@@ -62,7 +62,11 @@ void main() {
   test(
     'CP-08, CP-09 y CP-19 filtran asistencia y ausencias por curso y estado',
     () async {
-      final records = await repository.getDaily(course: '4.º Secundaria A');
+      final selectedDate = DateTime(2026, 7, 14);
+      final records = await repository.getDaily(
+        date: selectedDate,
+        course: '4.º Secundaria A',
+      );
       final absences = await repository.getDaily(
         status: AttendanceStatus.absent,
       );
@@ -70,6 +74,15 @@ void main() {
       expect(records, isNotEmpty);
       expect(
         records.every((record) => record.student.course == '4.º Secundaria A'),
+        isTrue,
+      );
+      expect(
+        records.every(
+          (record) =>
+              record.timestamp.year == selectedDate.year &&
+              record.timestamp.month == selectedDate.month &&
+              record.timestamp.day == selectedDate.day,
+        ),
         isTrue,
       );
       expect(absences, isNotEmpty);
