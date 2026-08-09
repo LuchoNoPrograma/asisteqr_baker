@@ -17,8 +17,8 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController(text: 'admin');
-  final _password = TextEditingController(text: 'removed-development-password');
+  final _username = TextEditingController();
+  final _password = TextEditingController();
   late final AnimationController _controller;
   bool _obscure = true;
 

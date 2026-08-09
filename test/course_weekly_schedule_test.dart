@@ -21,8 +21,12 @@ void main() {
     );
     addTearDown(container.dispose);
     await tester.runAsync(
-      () =>
-          container.read(sessionViewModelProvider).signIn('admin', 'removed-development-password'),
+      () => container
+          .read(sessionViewModelProvider)
+          .signIn(
+            MockAuthRepository.testUsername,
+            MockAuthRepository.testPassword,
+          ),
     );
 
     await tester.pumpWidget(
@@ -100,8 +104,12 @@ void main() {
     );
     addTearDown(container.dispose);
     await tester.runAsync(
-      () =>
-          container.read(sessionViewModelProvider).signIn('admin', 'removed-development-password'),
+      () => container
+          .read(sessionViewModelProvider)
+          .signIn(
+            MockAuthRepository.testUsername,
+            MockAuthRepository.testPassword,
+          ),
     );
 
     await tester.pumpWidget(
@@ -141,8 +149,12 @@ void main() {
     );
     addTearDown(container.dispose);
     await tester.runAsync(
-      () =>
-          container.read(sessionViewModelProvider).signIn('admin', 'removed-development-password'),
+      () => container
+          .read(sessionViewModelProvider)
+          .signIn(
+            MockAuthRepository.testUsername,
+            MockAuthRepository.testPassword,
+          ),
     );
 
     await tester.pumpWidget(

@@ -6,6 +6,16 @@ import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
 import 'package:dio/dio.dart';
 
 class MockAuthRepository implements AuthRepository {
+  MockAuthRepository({
+    this.acceptedUsername = testUsername,
+    this.acceptedPassword = testPassword,
+  });
+
+  static const testUsername = 'test-admin';
+  static const testPassword = 'test-password';
+
+  final String acceptedUsername;
+  final String acceptedPassword;
   SessionUser? _session;
 
   @override
@@ -17,7 +27,7 @@ class MockAuthRepository implements AuthRepository {
     required String password,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (username != 'admin' || password != 'removed-development-password') {
+    if (username != acceptedUsername || password != acceptedPassword) {
       throw const AuthException('Usuario o contraseña incorrectos.');
     }
     return _session = const SessionUser(

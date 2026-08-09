@@ -58,7 +58,10 @@ void main() {
       final session = container.read(sessionViewModelProvider);
       await tester.runAsync(session.restore);
       final signedIn = await tester.runAsync(
-        () => session.signIn('admin', 'removed-development-password'),
+        () => session.signIn(
+          MockAuthRepository.testUsername,
+          MockAuthRepository.testPassword,
+        ),
       );
       expect(signedIn, isTrue);
 
@@ -103,7 +106,12 @@ void main() {
     addTearDown(container.dispose);
     final session = container.read(sessionViewModelProvider);
     await tester.runAsync(session.restore);
-    await tester.runAsync(() => session.signIn('admin', 'removed-development-password'));
+    await tester.runAsync(
+      () => session.signIn(
+        MockAuthRepository.testUsername,
+        MockAuthRepository.testPassword,
+      ),
+    );
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,

@@ -12,7 +12,7 @@ void main() {
         code: 'EST-2026-0148',
         fullName: 'Valeria Mendoza Rojas',
         course: '4.º Secundaria B',
-        qrPayload: 'AQB1.removed_fixture',
+        qrPayload: 'AQB1.test_pdf_fixture',
       ),
     ];
 

@@ -29,12 +29,9 @@ flutter run \
 
 Para un teléfono Android físico, define una URL HTTPS o una IP local alcanzable para la API; `10.0.2.2` solo corresponde al emulador.
 
-- Usuario de desarrollo: `admin`
-- Contraseña de desarrollo: `removed-development-password`
-- QR opaco de desarrollo: `AQB1.removed_fixture`
 - APK: `build/app/outputs/flutter-apk/app-debug.apk`
 
-La vista de reportes descarga un PDF real desde la API autenticada. Las credenciales y el QR anteriores son solo datos semilla locales.
+La vista de reportes descarga un PDF real desde la API autenticada. Las credenciales se introducen en la pantalla de acceso y nunca se versionan en este repositorio. No uses `.env` ni `--dart-define` para secretos de usuario: Flutter los incorpora al artefacto compilado.
 
 ## Verificación
 

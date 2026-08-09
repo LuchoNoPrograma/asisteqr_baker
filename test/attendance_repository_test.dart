@@ -11,7 +11,7 @@ void main() {
     'CP-01 registra un QR valido con identidad, curso, fecha y estado',
     () async {
       final result = await repository.registerQr(
-        'AQB1.removed_fixture',
+        'AQB1.test_attendance_fixture',
       );
 
       expect(result.duplicate, isFalse);

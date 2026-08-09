@@ -28,7 +28,7 @@ class MockCredentialRepository implements CredentialRepository {
           fullName: entry.$2,
           course: entry.$3,
           qrPayload: entry.$1 == '0148'
-              ? 'AQB1.removed_fixture'
+              ? 'AQB1.test_credential_fixture'
               : 'AQB1.demo_${entry.$1}_2026',
         ),
     ];
