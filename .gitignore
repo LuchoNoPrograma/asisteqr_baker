@@ -38,6 +38,9 @@ migrate_working_dir/
 .env.*
 !.env.example
 
+# Local planning documents
+/FRONTEND_PLAN.md
+
 # Symbolication related
 app.*.symbols
 

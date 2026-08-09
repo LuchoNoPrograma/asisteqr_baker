@@ -8,6 +8,12 @@ El escáner mantiene el ciclo de vida de la cámara al cambiar de aplicación, d
 
 ## Desarrollo local
 
+La API usa la base PostgreSQL local `sistema-educativo-baker` disponible en
+`127.0.0.1:5432`. PostgreSQL no depende de un contenedor para el flujo de
+desarrollo de este proyecto; la conexión y sus credenciales se mantienen en el
+`.env` del backend ubicado en
+`/home/nini/IdeaProjects/asisteqr_baker_backend`.
+
 Para Linux Desktop:
 
 ```bash
@@ -32,6 +38,20 @@ Para un teléfono Android físico, define una URL HTTPS o una IP local alcanzabl
 - APK: `build/app/outputs/flutter-apk/app-debug.apk`
 
 La vista de reportes descarga un PDF real desde la API autenticada. Las credenciales se introducen en la pantalla de acceso y nunca se versionan en este repositorio. No uses `.env` ni `--dart-define` para secretos de usuario: Flutter los incorpora al artefacto compilado.
+
+## Arquitectura
+
+La aplicacion usa MVVM por funcionalidad:
+
+- `domain` define entidades y contratos independientes de Flutter.
+- `data` contiene DTO y repositorios que consumen la API.
+- `presentation` contiene paginas, widgets y view models inyectados con
+  Riverpod.
+
+Las vistas no realizan llamadas HTTP. Los editores complejos, como la futura
+matriz de horarios docentes, conservan un borrador en el view model y envian un
+unico guardado batch; las celdas de 30 minutos son una representacion visual de
+bloques continuos y no operaciones independientes.
 
 ## Verificación
 
