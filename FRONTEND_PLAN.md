@@ -49,9 +49,9 @@ Construir una aplicacion Flutter profesional para docentes y administradores, ba
 | CP-03, CP-14 | Estado QR invalido/ilegible con reintento sin registro |
 | CP-05 | Aviso de asistencia ya registrada con fecha y hora original |
 | CP-06, CP-07 | Resultado semantico `Atraso` o `Puntual` |
-| CP-08, CP-09, CP-19 | Asistencia diaria filtrable por curso y estado |
-| CP-10, CP-11 | Reportes semanal y mensual |
-| CP-12, CP-13 | Busqueda, historial y verificacion visual del propietario real |
+| CP-08, CP-09, CP-19 | Jornada seleccionable con ausencias y filtros reales por curso y estado |
+| CP-10, CP-11 | Reportes diario, semanal y mensual para la fecha y curso seleccionados |
+| CP-12, CP-13 | Busqueda por nombre, codigo o curso, historial y verificacion visual del propietario real |
 | CP-15, CP-16 | Guardas de ruta y estados de acceso denegado |
 
 ## Action items
@@ -63,8 +63,8 @@ Construir una aplicacion Flutter profesional para docentes y administradores, ba
 - [x] Corregir el ciclo de vida de cámara en Android, agregar captura QR nativa en Linux/Windows, mostrar errores recuperables y adaptar el espacio de escaneo a escritorio y móvil.
 - [x] Unificar éxitos, advertencias y errores con `quickalert` en alertas modales animadas de alto contraste, jerarquía visual y acción explícita.
 - [x] Implementar resultado puntual/atraso/duplicado y errores invalido/ilegible.
-- [x] Implementar asistencia diaria, filtros por curso y ausencia calculada.
-- [x] Implementar historial individual, cursos/horarios y reportes por periodo.
+- [x] Implementar asistencia por jornada seleccionada, filtros por curso y ausencia calculada.
+- [x] Implementar historial individual, cursos/horarios y reportes por periodo y fecha seleccionados.
 - [x] Implementar CRUD responsive de estudiantes sin campo de codigo manual.
 - [x] Implementar CRUD responsive de docentes con asignacion multiple de cursos.
 - [x] Conectar repositorios HTTP al contrato NestJS manteniendo mocks intercambiables para pruebas.
