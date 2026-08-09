@@ -42,6 +42,7 @@ class AppDataTable<T> extends StatefulWidget {
     this.rowsPerPage = 10,
     this.dataRowMinHeight = 52,
     this.dataRowMaxHeight = 72,
+    this.columnSpacing = 44,
   });
 
   final List<T> items;
@@ -53,6 +54,7 @@ class AppDataTable<T> extends StatefulWidget {
   final int rowsPerPage;
   final double dataRowMinHeight;
   final double dataRowMaxHeight;
+  final double columnSpacing;
 
   @override
   State<AppDataTable<T>> createState() => _AppDataTableState<T>();
@@ -282,6 +284,7 @@ class _AppDataTableState<T> extends State<AppDataTable<T>> {
               sortAscending: _sortAscending,
               dataRowMinHeight: widget.dataRowMinHeight,
               dataRowMaxHeight: widget.dataRowMaxHeight,
+              columnSpacing: widget.columnSpacing,
               headingRowColor: WidgetStateProperty.all(AppColors.canvas),
               columns: [
                 for (var index = 0; index < widget.columns.length; index++)

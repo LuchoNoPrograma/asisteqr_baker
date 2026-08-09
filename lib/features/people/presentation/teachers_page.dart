@@ -272,9 +272,10 @@ class _TeachersTable extends StatelessWidget {
             ],
           ),
         ],
+        columnSpacing: 28,
         columns: [
           AppDataColumn(
-            label: 'Código',
+            label: 'COD',
             compare: (first, second) =>
                 first.teacherCode.compareTo(second.teacherCode),
             cellBuilder: (context, teacher) => Text(
@@ -308,9 +309,8 @@ class _TeachersTable extends StatelessWidget {
             cellBuilder: (context, teacher) => Text(teacher.specialty),
           ),
           AppDataColumn(
-            label: 'Contacto',
-            cellBuilder: (context, teacher) =>
-                Text(teacher.email ?? teacher.phone ?? '—'),
+            label: 'Teléfono',
+            cellBuilder: (context, teacher) => Text(teacher.phone ?? '—'),
           ),
           AppDataColumn(
             label: 'Cursos',
@@ -395,6 +395,11 @@ class _TeacherTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (teacher.phone?.isNotEmpty == true)
+                Text(
+                  teacher.phone!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
             ],
           ),
         ),

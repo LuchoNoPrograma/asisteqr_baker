@@ -256,7 +256,7 @@ class _StudentsTable extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
       child: AppDataTable<StudentEntry>(
         items: students,
-        searchHint: 'Buscar estudiante, documento o tutor',
+        searchHint: 'Buscar estudiante, tutor o curso',
         searchText: (student) => [
           student.studentCode,
           student.fullName,
@@ -291,9 +291,12 @@ class _StudentsTable extends StatelessWidget {
             ],
           ),
         ],
+        dataRowMinHeight: 58,
+        dataRowMaxHeight: 78,
+        columnSpacing: 28,
         columns: [
           AppDataColumn(
-            label: 'Código',
+            label: 'COD',
             compare: (first, second) =>
                 first.studentCode.compareTo(second.studentCode),
             cellBuilder: (context, student) => Text(
@@ -321,31 +324,28 @@ class _StudentsTable extends StatelessWidget {
             ),
           ),
           AppDataColumn(
-            label: 'Documento',
-            compare: (first, second) => (first.documentNumber ?? '').compareTo(
-              second.documentNumber ?? '',
-            ),
-            cellBuilder: (context, student) =>
-                Text(student.documentNumber ?? '—'),
-          ),
-          AppDataColumn(
-            label: 'Tutor',
-            compare: (first, second) =>
-                (first.guardianName ?? '').compareTo(second.guardianName ?? ''),
-            cellBuilder: (context, student) =>
-                Text(student.guardianName ?? '—'),
-          ),
-          AppDataColumn(
-            label: 'Teléfono tutor',
-            cellBuilder: (context, student) =>
-                Text(student.guardianPhone ?? '—'),
-          ),
-          AppDataColumn(
             label: 'Curso',
             compare: (first, second) =>
                 (first.course?.name ?? '').compareTo(second.course?.name ?? ''),
             cellBuilder: (context, student) =>
                 Text(student.course?.name ?? 'Sin curso'),
+          ),
+          AppDataColumn(
+            label: 'Tutor',
+            compare: (first, second) =>
+                (first.guardianName ?? '').compareTo(second.guardianName ?? ''),
+            cellBuilder: (context, student) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(student.guardianName ?? 'Sin tutor'),
+                if (student.guardianPhone?.isNotEmpty == true)
+                  Text(
+                    student.guardianPhone!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
           ),
           AppDataColumn(
             label: 'Estado',
