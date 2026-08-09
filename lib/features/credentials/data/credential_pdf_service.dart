@@ -27,6 +27,12 @@ class CredentialPdfService {
     final boldFont = pw.Font.ttf(
       await rootBundle.load('assets/fonts/LiberationSans-Bold.ttf'),
     );
+    final whiteMark = pw.MemoryImage(
+      _bytes(await rootBundle.load('assets/branding/baker-mark-white.png')),
+    );
+    final blueMark = pw.MemoryImage(
+      _bytes(await rootBundle.load('assets/branding/baker-mark-blue.png')),
+    );
     final theme = pw.ThemeData.withFont(base: regularFont, bold: boldFont);
     final photos = <String, pw.MemoryImage>{};
     for (final student in students) {
@@ -42,11 +48,27 @@ class CredentialPdfService {
       final end = (start + _cardsPerPage).clamp(0, students.length).toInt();
       final batch = students.sublist(start, end);
       document.addPage(
-        _sheet(batch, photos, managementYear, theme, back: false),
+        _sheet(
+          batch,
+          photos,
+          managementYear,
+          theme,
+          whiteMark: whiteMark,
+          blueMark: blueMark,
+          back: false,
+        ),
       );
       if (mode == CredentialPrintMode.doubleSided) {
         document.addPage(
-          _sheet(batch, photos, managementYear, theme, back: true),
+          _sheet(
+            batch,
+            photos,
+            managementYear,
+            theme,
+            whiteMark: whiteMark,
+            blueMark: blueMark,
+            back: true,
+          ),
         );
       }
     }
@@ -58,6 +80,8 @@ class CredentialPdfService {
     Map<String, pw.MemoryImage> photos,
     int managementYear,
     pw.ThemeData theme, {
+    required pw.MemoryImage whiteMark,
+    required pw.MemoryImage blueMark,
     required bool back,
   }) {
     final slots = List<CredentialStudent?>.filled(_cardsPerPage, null);
@@ -79,9 +103,23 @@ class CredentialPdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
-                _slot(slots[row * 2], photos, managementYear, back),
+                _slot(
+                  slots[row * 2],
+                  photos,
+                  managementYear,
+                  back,
+                  whiteMark,
+                  blueMark,
+                ),
                 pw.SizedBox(width: 4 * PdfPageFormat.mm),
-                _slot(slots[row * 2 + 1], photos, managementYear, back),
+                _slot(
+                  slots[row * 2 + 1],
+                  photos,
+                  managementYear,
+                  back,
+                  whiteMark,
+                  blueMark,
+                ),
               ],
             ),
             if (row < 3) pw.SizedBox(height: 4 * PdfPageFormat.mm),
@@ -98,16 +136,20 @@ class CredentialPdfService {
     Map<String, pw.MemoryImage> photos,
     int managementYear,
     bool back,
+    pw.MemoryImage whiteMark,
+    pw.MemoryImage blueMark,
   ) {
     if (student == null) {
       return pw.SizedBox(width: _cardWidth, height: _cardHeight);
     }
     return back
-        ? _credentialBack(student, managementYear)
+        ? _credentialBack(student, managementYear, whiteMark)
         : _credentialFront(
             student,
             photos[student.photoSource],
             managementYear,
+            whiteMark,
+            blueMark,
           );
   }
 
@@ -115,6 +157,8 @@ class CredentialPdfService {
     CredentialStudent student,
     pw.MemoryImage? photo,
     int managementYear,
+    pw.MemoryImage whiteMark,
+    pw.MemoryImage blueMark,
   ) {
     return _card(
       child: pw.Column(
@@ -122,6 +166,7 @@ class CredentialPdfService {
           _header(
             title: 'UNIDAD EDUCATIVA\nADVENTISTA BAKER',
             subtitle: 'CREDENCIAL ESTUDIANTIL',
+            mark: whiteMark,
           ),
           pw.Expanded(
             child: pw.Padding(
@@ -165,7 +210,7 @@ class CredentialPdfService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        _brandLine(),
+                        _brandLine(blueMark),
                         pw.Spacer(),
                         _field('NOMBRE', student.fullName, 8.2),
                         pw.SizedBox(height: 2),
@@ -213,7 +258,11 @@ class CredentialPdfService {
     );
   }
 
-  pw.Widget _credentialBack(CredentialStudent student, int managementYear) {
+  pw.Widget _credentialBack(
+    CredentialStudent student,
+    int managementYear,
+    pw.MemoryImage whiteMark,
+  ) {
     return _card(
       child: pw.Column(
         children: [
@@ -232,7 +281,7 @@ class CredentialPdfService {
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                _miniMark(),
+                _miniMark(whiteMark),
               ],
             ),
           ),
@@ -328,99 +377,66 @@ class CredentialPdfService {
     ),
   );
 
-  pw.Widget _header({required String title, required String subtitle}) =>
-      pw.Container(
-        height: 12 * PdfPageFormat.mm,
-        color: _navy,
-        padding: pw.EdgeInsets.symmetric(horizontal: 4 * PdfPageFormat.mm),
-        child: pw.Row(
-          children: [
-            _schoolMark(),
-            pw.SizedBox(width: 3 * PdfPageFormat.mm),
-            pw.Expanded(
-              child: pw.Column(
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    title,
-                    style: pw.TextStyle(
-                      color: PdfColors.white,
-                      fontSize: 8.5,
-                      fontWeight: pw.FontWeight.bold,
-                      lineSpacing: 0,
-                    ),
-                  ),
-                  pw.Text(
-                    subtitle,
-                    style: pw.TextStyle(
-                      color: _greenLight,
-                      fontSize: 6.5,
-                      fontWeight: pw.FontWeight.bold,
-                      letterSpacing: .4,
-                    ),
-                  ),
-                ],
+  pw.Widget _header({
+    required String title,
+    required String subtitle,
+    required pw.MemoryImage mark,
+  }) => pw.Container(
+    height: 12 * PdfPageFormat.mm,
+    color: _navy,
+    padding: pw.EdgeInsets.symmetric(horizontal: 4 * PdfPageFormat.mm),
+    child: pw.Row(
+      children: [
+        _schoolMark(mark),
+        pw.SizedBox(width: 3 * PdfPageFormat.mm),
+        pw.Expanded(
+          child: pw.Column(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  lineSpacing: 0,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-
-  pw.Widget _schoolMark() => pw.Container(
-    width: 9 * PdfPageFormat.mm,
-    height: 9 * PdfPageFormat.mm,
-    decoration: pw.BoxDecoration(
-      border: pw.Border.all(color: _greenLight, width: 1),
-      borderRadius: pw.BorderRadius.circular(4),
-    ),
-    alignment: pw.Alignment.center,
-    child: pw.Text(
-      'UE',
-      style: pw.TextStyle(
-        color: PdfColors.white,
-        fontSize: 8,
-        fontWeight: pw.FontWeight.bold,
-      ),
-    ),
-  );
-
-  pw.Widget _miniMark() => pw.Container(
-    width: 7 * PdfPageFormat.mm,
-    height: 7 * PdfPageFormat.mm,
-    decoration: pw.BoxDecoration(
-      border: pw.Border.all(color: _greenLight, width: 1),
-      borderRadius: pw.BorderRadius.circular(3),
-    ),
-    alignment: pw.Alignment.center,
-    child: pw.Text(
-      'QR',
-      style: pw.TextStyle(
-        color: PdfColors.white,
-        fontSize: 6,
-        fontWeight: pw.FontWeight.bold,
-      ),
-    ),
-  );
-
-  pw.Widget _brandLine() => pw.Row(
-    children: [
-      pw.Container(
-        width: 5 * PdfPageFormat.mm,
-        height: 5 * PdfPageFormat.mm,
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: _navy, width: 1),
-          borderRadius: pw.BorderRadius.circular(2),
-        ),
-        alignment: pw.Alignment.center,
-        child: pw.Text(
-          'QR',
-          style: pw.TextStyle(
-            color: _green,
-            fontSize: 5,
-            fontWeight: pw.FontWeight.bold,
+              pw.Text(
+                subtitle,
+                style: pw.TextStyle(
+                  color: _greenLight,
+                  fontSize: 6.5,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: .4,
+                ),
+              ),
+            ],
           ),
         ),
+      ],
+    ),
+  );
+
+  pw.Widget _schoolMark(pw.MemoryImage mark) => pw.SizedBox(
+    width: 9 * PdfPageFormat.mm,
+    height: 9 * PdfPageFormat.mm,
+    child: pw.Image(mark, fit: pw.BoxFit.contain),
+  );
+
+  pw.Widget _miniMark(pw.MemoryImage mark) => pw.SizedBox(
+    width: 7 * PdfPageFormat.mm,
+    height: 7 * PdfPageFormat.mm,
+    child: pw.Image(mark, fit: pw.BoxFit.contain),
+  );
+
+  pw.Widget _brandLine(pw.MemoryImage mark) => pw.Row(
+    children: [
+      pw.SizedBox(
+        width: 5 * PdfPageFormat.mm,
+        height: 5 * PdfPageFormat.mm,
+        child: pw.Image(mark, fit: pw.BoxFit.contain),
       ),
       pw.SizedBox(width: 3),
       pw.RichText(
@@ -467,6 +483,9 @@ class CredentialPdfService {
       ),
     ],
   );
+
+  Uint8List _bytes(ByteData data) =>
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
 
   Future<Uint8List?> _loadPhoto(String source) async {
     try {

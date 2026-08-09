@@ -3,6 +3,7 @@ import 'package:asisteqr_baker/app/theme/app_colors.dart';
 import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
 import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
+import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
 import 'package:asisteqr_baker/features/credentials/data/credential_pdf_service.dart';
 import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
 import 'package:file_saver/file_saver.dart';
@@ -1016,7 +1017,7 @@ class _PreviewBrand extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Row(
     children: [
-      Icon(LucideIcons.qrCode, color: AppColors.navy, size: 18),
+      InstitutionMark(size: 18),
       SizedBox(width: 5),
       Text(
         'Asiste',
@@ -1037,23 +1038,11 @@ class _PreviewBrand extends StatelessWidget {
 class _SchoolMark extends StatelessWidget {
   const _SchoolMark({this.compact = false});
   final bool compact;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: compact ? 28 : 34,
-    height: compact ? 28 : 34,
-    decoration: BoxDecoration(
-      border: Border.all(color: const Color(0xFF9AD75A)),
-      borderRadius: BorderRadius.circular(5),
-    ),
-    alignment: Alignment.center,
-    child: Text(
-      compact ? 'QR' : 'UE',
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
+  Widget build(BuildContext context) => InstitutionMark(
+    size: compact ? 28 : 34,
+    variant: InstitutionMarkVariant.white,
   );
 }
 
