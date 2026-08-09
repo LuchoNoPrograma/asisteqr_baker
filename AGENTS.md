@@ -97,6 +97,14 @@ segunda barra de filtros duplicada encima del componente.
 
 ## Horarios academicos
 
+- `AsignacionAcademica` es la unidad canonica de carga: periodo, curso,
+  materia, docente y minutos semanales. `HorarioClase` representa una sesion
+  concreta con dia, rango y aula; no duplicar horarios por perspectiva.
+- `/horarios` es el planificador general y proyecta el mismo borrador por
+  `Curso | Docente | Aula`. Cursos y Docentes solo enlazan al planificador o al
+  editor contextual; no mantienen una segunda fuente de horarios.
+- Las bajas del guardado batch deben ser explicitas y logicas. No reemplazar el
+  periodo mediante `deleteMany` seguido de recreacion masiva.
 - La vista especializada de un docente debe abrirse desde Gestion de Docentes y
   usar una ruta identificable por `docenteId`.
 - La matriz usa dias como columnas e intervalos de 30 minutos como filas, pero

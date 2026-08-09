@@ -48,10 +48,11 @@ La aplicacion usa MVVM por funcionalidad:
 - `presentation` contiene paginas, widgets y view models inyectados con
   Riverpod.
 
-Las vistas no realizan llamadas HTTP. Los editores complejos, como la futura
-matriz de horarios docentes, conservan un borrador en el view model y envian un
-unico guardado batch; las celdas de 30 minutos son una representacion visual de
-bloques continuos y no operaciones independientes.
+Las vistas no realizan llamadas HTTP. Los editores de horarios conservan un
+borrador en el view model y envian un unico guardado batch; las celdas de 30
+minutos son una representacion visual de bloques continuos y no operaciones
+independientes. El planificador general usa una sola fuente y puede proyectarse
+por curso, docente o aula.
 
 ## Verificación
 

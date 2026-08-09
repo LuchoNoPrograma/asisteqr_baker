@@ -124,8 +124,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/horarios',
-        pageBuilder: (context, state) =>
-            _fadePage(state, const TeachingSchedulesPage()),
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          TeachingSchedulesPage(
+            initialPerspective: state.uri.queryParameters['perspectiva'],
+            initialResourceId: state.uri.queryParameters['recursoId'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/credenciales',

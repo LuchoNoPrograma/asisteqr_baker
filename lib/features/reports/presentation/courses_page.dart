@@ -9,6 +9,7 @@ import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class CoursesPage extends ConsumerWidget {
@@ -219,6 +220,9 @@ class CoursesPage extends ConsumerWidget {
                             _deactivateCourse(context, ref, course),
                         onManageEntrySchedules: (course) =>
                             _manageEntrySchedules(context, ref, course),
+                        onPlanClasses: (course) => context.go(
+                          '/horarios?perspectiva=curso&recursoId=${course.id}',
+                        ),
                       )
                     : ListView.builder(
                         padding: EdgeInsets.fromLTRB(14, 0, 14, 24),
@@ -233,6 +237,9 @@ class CoursesPage extends ConsumerWidget {
                                 _deactivateCourse(context, ref, course),
                             onManageEntrySchedules: () =>
                                 _manageEntrySchedules(context, ref, course),
+                            onPlanClasses: () => context.go(
+                              '/horarios?perspectiva=curso&recursoId=${course.id}',
+                            ),
                           );
                         },
                       ),
@@ -252,6 +259,7 @@ class _CoursesTable extends StatelessWidget {
     required this.onEdit,
     required this.onDeactivate,
     required this.onManageEntrySchedules,
+    required this.onPlanClasses,
   });
 
   final List<CourseEntry> courses;
@@ -259,6 +267,7 @@ class _CoursesTable extends StatelessWidget {
   final ValueChanged<CourseEntry> onEdit;
   final ValueChanged<CourseEntry> onDeactivate;
   final ValueChanged<CourseEntry> onManageEntrySchedules;
+  final ValueChanged<CourseEntry> onPlanClasses;
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +379,9 @@ class _CoursesTable extends StatelessWidget {
                     case _CourseActionType.manageEntrySchedules:
                       onManageEntrySchedules(course);
                       break;
+                    case _CourseActionType.planClasses:
+                      onPlanClasses(course);
+                      break;
                   }
                 },
                 itemBuilder: (context) => [
@@ -378,6 +390,13 @@ class _CoursesTable extends StatelessWidget {
                     child: _CourseMenuItem(
                       icon: LucideIcons.pencil,
                       label: 'Editar curso',
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: _CourseAction(_CourseActionType.planClasses),
+                    child: _CourseMenuItem(
+                      icon: LucideIcons.settings2,
+                      label: 'Configurar clases',
                     ),
                   ),
                   const PopupMenuItem(
@@ -407,7 +426,7 @@ class _CoursesTable extends StatelessWidget {
   }
 }
 
-enum _CourseActionType { edit, manageEntrySchedules, deactivate }
+enum _CourseActionType { edit, planClasses, manageEntrySchedules, deactivate }
 
 class _CourseAction {
   const _CourseAction(this.type);
@@ -449,6 +468,7 @@ class _CoursePanel extends StatelessWidget {
     required this.onEdit,
     required this.onDeactivate,
     required this.onManageEntrySchedules,
+    required this.onPlanClasses,
   });
 
   final CourseEntry course;
@@ -456,6 +476,7 @@ class _CoursePanel extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDeactivate;
   final VoidCallback onManageEntrySchedules;
+  final VoidCallback onPlanClasses;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -483,14 +504,24 @@ class _CoursePanel extends StatelessWidget {
       trailing: canManage
           ? PopupMenuButton<String>(
               tooltip: 'Acciones del curso',
-              onSelected: (value) =>
-                  value == 'edit' ? onEdit() : onDeactivate(),
+              onSelected: (value) {
+                if (value == 'edit') onEdit();
+                if (value == 'classes') onPlanClasses();
+                if (value == 'deactivate') onDeactivate();
+              },
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(LucideIcons.pencil, size: 18),
                     title: Text('Editar curso'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'classes',
+                  child: ListTile(
+                    leading: Icon(LucideIcons.settings2, size: 18),
+                    title: Text('Configurar clases'),
                   ),
                 ),
                 PopupMenuItem(

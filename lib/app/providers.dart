@@ -19,9 +19,12 @@ import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
 import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
 import 'package:asisteqr_baker/features/schedules/data/api_teaching_schedule_repository.dart';
 import 'package:asisteqr_baker/features/schedules/data/api_teacher_schedule_editor_repository.dart';
+import 'package:asisteqr_baker/features/schedules/data/api_schedule_planner_repository.dart';
+import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_repository.dart';
 import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_repository.dart';
 import 'package:asisteqr_baker/features/schedules/domain/teaching_schedule_repository.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_editor_view_model.dart';
+import 'package:asisteqr_baker/features/schedules/presentation/schedule_planner_view_model.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_view_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -89,6 +92,16 @@ final teacherScheduleEditorRepositoryProvider =
     Provider<TeacherScheduleEditorRepository>(
       (ref) => ApiTeacherScheduleEditorRepository(ref.watch(apiClientProvider)),
     );
+
+final schedulePlannerRepositoryProvider = Provider<SchedulePlannerRepository>(
+  (ref) => ApiSchedulePlannerRepository(ref.watch(apiClientProvider)),
+);
+
+final schedulePlannerViewModelProvider = ChangeNotifierProvider.autoDispose(
+  (ref) =>
+      SchedulePlannerViewModel(ref.watch(schedulePlannerRepositoryProvider))
+        ..load(),
+);
 
 final teacherScheduleEditorViewModelProvider = ChangeNotifierProvider
     .autoDispose
