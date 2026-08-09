@@ -17,6 +17,9 @@ import 'package:asisteqr_baker/features/people/presentation/teachers_view_model.
 import 'package:asisteqr_baker/features/reports/data/api_report_repository.dart';
 import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
 import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
+import 'package:asisteqr_baker/features/schedules/data/api_teaching_schedule_repository.dart';
+import 'package:asisteqr_baker/features/schedules/domain/teaching_schedule_repository.dart';
+import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_view_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final tokenStoreProvider = Provider((ref) => SecureTokenStore());
@@ -65,6 +68,18 @@ final reportRepositoryProvider = Provider<ReportRepository>(
 
 final reportExportViewModelProvider = ChangeNotifierProvider.autoDispose(
   (ref) => ReportExportViewModel(ref.watch(reportRepositoryProvider)),
+);
+
+final teachingScheduleRepositoryProvider = Provider<TeachingScheduleRepository>(
+  (ref) => ApiTeachingScheduleRepository(ref.watch(apiClientProvider)),
+);
+
+final teachingSchedulesViewModelProvider = ChangeNotifierProvider.autoDispose(
+  (ref) => TeachingSchedulesViewModel(
+    ref.watch(teachingScheduleRepositoryProvider),
+    ref.watch(peopleRepositoryProvider),
+    ref.watch(courseRepositoryProvider),
+  )..load(),
 );
 
 final sessionViewModelProvider = ChangeNotifierProvider(

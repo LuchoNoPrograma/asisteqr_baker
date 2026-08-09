@@ -6,7 +6,6 @@ import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
 import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,25 +84,6 @@ class CoursesPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _editWeeklySchedule(
-    BuildContext context,
-    WidgetRef ref,
-    CourseEntry course,
-  ) async {
-    final model = ref.read(coursesViewModelProvider);
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => _WeeklyScheduleDialog(
-        course: course,
-        onSave: (slots) => model.saveWeeklySchedule(course, slots),
-        errorMessage: model.takeError,
-      ),
-    );
-    if (saved == true && context.mounted) {
-      showAppSuccess(context, 'Planilla horaria guardada correctamente.');
-    }
-  }
-
   Future<void> _manageEntrySchedules(
     BuildContext context,
     WidgetRef ref,
@@ -174,7 +154,7 @@ class CoursesPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Cursos y horarios',
+                                'Cursos',
                                 style: wide
                                     ? Theme.of(context).textTheme.headlineMedium
                                     : Theme.of(context).textTheme.titleLarge,
@@ -239,8 +219,6 @@ class CoursesPage extends ConsumerWidget {
                             _deactivateCourse(context, ref, course),
                         onManageEntrySchedules: (course) =>
                             _manageEntrySchedules(context, ref, course),
-                        onEditWeeklySchedule: (course) =>
-                            _editWeeklySchedule(context, ref, course),
                       )
                     : ListView.builder(
                         padding: EdgeInsets.fromLTRB(14, 0, 14, 24),
@@ -255,8 +233,6 @@ class CoursesPage extends ConsumerWidget {
                                 _deactivateCourse(context, ref, course),
                             onManageEntrySchedules: () =>
                                 _manageEntrySchedules(context, ref, course),
-                            onEditWeeklySchedule: () =>
-                                _editWeeklySchedule(context, ref, course),
                           );
                         },
                       ),
@@ -276,7 +252,6 @@ class _CoursesTable extends StatelessWidget {
     required this.onEdit,
     required this.onDeactivate,
     required this.onManageEntrySchedules,
-    required this.onEditWeeklySchedule,
   });
 
   final List<CourseEntry> courses;
@@ -284,7 +259,6 @@ class _CoursesTable extends StatelessWidget {
   final ValueChanged<CourseEntry> onEdit;
   final ValueChanged<CourseEntry> onDeactivate;
   final ValueChanged<CourseEntry> onManageEntrySchedules;
-  final ValueChanged<CourseEntry> onEditWeeklySchedule;
 
   @override
   Widget build(BuildContext context) {
@@ -297,13 +271,8 @@ class _CoursesTable extends StatelessWidget {
       child: AppDataTable<CourseEntry>(
         items: courses,
         searchHint: 'Buscar curso, nivel o paralelo',
-        searchText: (course) => [
-          course.name,
-          course.level,
-          course.parallel,
-          course.year,
-          ...course.weeklySchedule.expand((slot) => [slot.weekday, slot.hour]),
-        ].join(' '),
+        searchText: (course) =>
+            [course.name, course.level, course.parallel, course.year].join(' '),
         filters: [
           AppDataFilter(
             label: 'Nivel',
@@ -385,11 +354,6 @@ class _CoursesTable extends StatelessWidget {
             cellBuilder: (context, course) =>
                 _EntryScheduleSummary(schedules: course.schedules),
           ),
-          AppDataColumn(
-            label: 'Horario semanal',
-            cellBuilder: (context, course) =>
-                _WeeklyScheduleSummary(slots: course.weeklySchedule),
-          ),
           if (canManage)
             AppDataColumn(
               label: 'Acciones',
@@ -405,9 +369,6 @@ class _CoursesTable extends StatelessWidget {
                       break;
                     case _CourseActionType.manageEntrySchedules:
                       onManageEntrySchedules(course);
-                      break;
-                    case _CourseActionType.editWeeklySchedule:
-                      onEditWeeklySchedule(course);
                       break;
                   }
                 },
@@ -428,13 +389,6 @@ class _CoursesTable extends StatelessWidget {
                       label: 'Horarios de ingreso',
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: _CourseAction(_CourseActionType.editWeeklySchedule),
-                    child: _CourseMenuItem(
-                      icon: LucideIcons.calendarClock,
-                      label: 'Planilla semanal',
-                    ),
-                  ),
                   const PopupMenuDivider(),
                   const PopupMenuItem(
                     value: _CourseAction(_CourseActionType.deactivate),
@@ -453,12 +407,7 @@ class _CoursesTable extends StatelessWidget {
   }
 }
 
-enum _CourseActionType {
-  edit,
-  manageEntrySchedules,
-  editWeeklySchedule,
-  deactivate,
-}
+enum _CourseActionType { edit, manageEntrySchedules, deactivate }
 
 class _CourseAction {
   const _CourseAction(this.type);
@@ -500,7 +449,6 @@ class _CoursePanel extends StatelessWidget {
     required this.onEdit,
     required this.onDeactivate,
     required this.onManageEntrySchedules,
-    required this.onEditWeeklySchedule,
   });
 
   final CourseEntry course;
@@ -508,7 +456,6 @@ class _CoursePanel extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDeactivate;
   final VoidCallback onManageEntrySchedules;
-  final VoidCallback onEditWeeklySchedule;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -584,25 +531,6 @@ class _CoursePanel extends StatelessWidget {
                 ],
               ),
               _EntryScheduleSummary(schedules: course.schedules),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Horario semanal',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  if (canManage)
-                    OutlinedButton.icon(
-                      onPressed: onEditWeeklySchedule,
-                      icon: const Icon(LucideIcons.calendarClock, size: 18),
-                      label: const Text('Editar'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _WeeklyScheduleSummary(slots: course.weeklySchedule),
             ],
           ),
         ),
@@ -1016,36 +944,6 @@ class _EntryScheduleFormDialogState extends State<_EntryScheduleFormDialog> {
   }
 }
 
-class _WeeklyScheduleSummary extends StatelessWidget {
-  const _WeeklyScheduleSummary({required this.slots});
-
-  final List<WeeklyCourseSlot> slots;
-
-  @override
-  Widget build(BuildContext context) {
-    if (slots.isEmpty) {
-      return Text(
-        'Sin horario asignado',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppColors.inkMuted),
-      );
-    }
-    final days = slots.map((slot) => slot.weekday).toSet().length;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(LucideIcons.calendarDays, size: 17, color: AppColors.navy),
-        const SizedBox(width: 7),
-        Text(
-          '${slots.length} h semanales · $days días',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-  }
-}
-
 class _CourseDialog extends StatefulWidget {
   const _CourseDialog({
     required this.onSave,
@@ -1221,417 +1119,6 @@ class _CourseDialogState extends State<_CourseDialog> {
       );
     }
   }
-}
-
-class _WeeklyScheduleDialog extends StatefulWidget {
-  const _WeeklyScheduleDialog({
-    required this.course,
-    required this.onSave,
-    required this.errorMessage,
-  });
-
-  final CourseEntry course;
-  final Future<bool> Function(Iterable<WeeklyCourseSlot>) onSave;
-  final String? Function() errorMessage;
-
-  @override
-  State<_WeeklyScheduleDialog> createState() => _WeeklyScheduleDialogState();
-}
-
-class _WeeklyScheduleDialogState extends State<_WeeklyScheduleDialog> {
-  late Map<String, WeeklyCourseSlot> draft;
-  bool saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    draft = {for (final slot in widget.course.weeklySchedule) slot.key: slot};
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: AppDialogHeader(
-      title: 'Horario semanal',
-      subtitle: widget.course.name,
-    ),
-    content: SizedBox(
-      width: 760,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: saving ? null : () => _applyPreset(8, 12),
-                  icon: const Icon(LucideIcons.sunrise, size: 17),
-                  label: const Text('Lun–Vie 08–12'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: saving ? null : () => _applyPreset(14, 20),
-                  icon: const Icon(LucideIcons.sunset, size: 17),
-                  label: const Text('Lun–Vie 14–20'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: saving || draft.isEmpty ? null : _clear,
-                  icon: const Icon(LucideIcons.eraser, size: 17),
-                  label: const Text('Limpiar'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(
-                  LucideIcons.clock3,
-                  size: 17,
-                  color: AppColors.inkMuted,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    '${draft.length} horas semanales · 08:00–20:00',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) => DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: _WeeklyScheduleMatrix(
-                    selectedKeys: draft.keys.toSet(),
-                    enabled: !saving,
-                    width: constraints.maxWidth,
-                    onPaint: _paintSlot,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: saving ? null : () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      FilledButton.icon(
-        onPressed: saving ? null : _save,
-        icon: saving
-            ? const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(LucideIcons.save, size: 17),
-        label: const Text('Guardar horario'),
-      ),
-    ],
-  );
-
-  void _paintSlot(WeeklyCourseSlot slot, bool selected) {
-    setState(() {
-      if (selected) {
-        draft[slot.key] = slot;
-      } else {
-        draft.remove(slot.key);
-      }
-    });
-  }
-
-  void _applyPreset(int firstHour, int endHour) {
-    final slots = <WeeklyCourseSlot>[];
-    for (
-      var weekday = WeeklyCourseSlot.firstWeekday;
-      weekday <= WeeklyCourseSlot.lastWeekday;
-      weekday++
-    ) {
-      for (var hour = firstHour; hour < endHour; hour++) {
-        slots.add(WeeklyCourseSlot(weekday: weekday, hour: hour));
-      }
-    }
-    setState(() => draft = {for (final slot in slots) slot.key: slot});
-  }
-
-  void _clear() => setState(draft.clear);
-
-  Future<void> _save() async {
-    setState(() => saving = true);
-    final saved = await widget.onSave(draft.values);
-    if (mounted && saved) Navigator.pop(context, true);
-    if (mounted && !saved) {
-      setState(() => saving = false);
-      await showAppErrorDialog(
-        context,
-        title: 'No se pudo guardar el horario',
-        message: widget.errorMessage() ?? 'Intenta nuevamente.',
-      );
-    }
-  }
-}
-
-class _WeeklyScheduleMatrix extends StatefulWidget {
-  const _WeeklyScheduleMatrix({
-    required this.selectedKeys,
-    required this.enabled,
-    required this.width,
-    required this.onPaint,
-  });
-
-  final Set<String> selectedKeys;
-  final bool enabled;
-  final double width;
-  final void Function(WeeklyCourseSlot slot, bool selected) onPaint;
-
-  @override
-  State<_WeeklyScheduleMatrix> createState() => _WeeklyScheduleMatrixState();
-}
-
-class _WeeklyScheduleMatrixState extends State<_WeeklyScheduleMatrix> {
-  static const hourWidth = 66.0;
-  static const headerHeight = 38.0;
-  static const rowHeight = 32.0;
-  static const dayCount = 5;
-  static const hourCount = 12;
-  static const matrixHeight = headerHeight + rowHeight * hourCount;
-  static const dayLabels = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE'];
-  static const touchPaintingDevices = {
-    PointerDeviceKind.touch,
-    PointerDeviceKind.stylus,
-    PointerDeviceKind.invertedStylus,
-  };
-
-  bool painting = false;
-  bool paintValue = true;
-  String? lastSlotKey;
-
-  double get dayWidth => (widget.width - hourWidth) / dayCount;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    supportedDevices: touchPaintingDevices,
-    onTapUp: widget.enabled ? _toggleTouchSlot : null,
-    onLongPressStart: widget.enabled ? _startTouchPaint : null,
-    onLongPressMoveUpdate: widget.enabled ? _continueTouchPaint : null,
-    onLongPressEnd: widget.enabled ? (_) => _cancelPaint() : null,
-    onLongPressCancel: widget.enabled ? _cancelPaint : null,
-    child: Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: widget.enabled ? _startMousePaint : null,
-      onPointerMove: widget.enabled ? _continueMousePaint : null,
-      onPointerUp: widget.enabled ? (_) => _cancelPaint() : null,
-      onPointerCancel: widget.enabled ? (_) => _cancelPaint() : null,
-      child: SizedBox(
-        key: const ValueKey('course_weekly_schedule_matrix'),
-        width: widget.width,
-        height: matrixHeight,
-        child: Stack(
-          children: [
-            const Positioned(
-              left: 0,
-              top: 0,
-              width: hourWidth,
-              height: headerHeight,
-              child: _ScheduleLabelCell(label: 'HORA'),
-            ),
-            for (var day = 0; day < dayCount; day++)
-              Positioned(
-                left: hourWidth + dayWidth * day,
-                top: 0,
-                width: dayWidth,
-                height: headerHeight,
-                child: _ScheduleLabelCell(label: dayLabels[day]),
-              ),
-            for (var row = 0; row < hourCount; row++) ...[
-              Positioned(
-                left: 0,
-                top: headerHeight + rowHeight * row,
-                width: hourWidth,
-                height: rowHeight,
-                child: _ScheduleLabelCell(
-                  label:
-                      '${(WeeklyCourseSlot.firstHour + row).toString().padLeft(2, '0')}–'
-                      '${(WeeklyCourseSlot.firstHour + row + 1).toString().padLeft(2, '0')}',
-                ),
-              ),
-              for (var day = 0; day < dayCount; day++)
-                _positionedCell(day, row),
-            ],
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Widget _positionedCell(int day, int row) {
-    final slot = WeeklyCourseSlot(
-      weekday: day + WeeklyCourseSlot.firstWeekday,
-      hour: row + WeeklyCourseSlot.firstHour,
-    );
-    final selected = widget.selectedKeys.contains(slot.key);
-    return Positioned(
-      left: hourWidth + dayWidth * day,
-      top: headerHeight + rowHeight * row,
-      width: dayWidth,
-      height: rowHeight,
-      child: _ScheduleMatrixCell(
-        key: ValueKey('course_slot_${slot.weekday}_${slot.hour}'),
-        label: '${dayLabels[day]} ${slot.hour}:00',
-        selected: selected,
-        enabled: widget.enabled,
-        onToggle: () => widget.onPaint(slot, !selected),
-      ),
-    );
-  }
-
-  void _startMousePaint(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.mouse) return;
-    final slot = _slotAt(event.localPosition);
-    if (slot == null) return;
-    painting = true;
-    paintValue = !widget.selectedKeys.contains(slot.key);
-    lastSlotKey = slot.key;
-    widget.onPaint(slot, paintValue);
-  }
-
-  void _continueMousePaint(PointerMoveEvent event) {
-    if (event.kind != PointerDeviceKind.mouse || !painting) return;
-    _paintOnce(_slotAt(event.localPosition));
-  }
-
-  void _toggleTouchSlot(TapUpDetails details) {
-    final slot = _slotAt(details.localPosition);
-    if (slot != null) {
-      widget.onPaint(slot, !widget.selectedKeys.contains(slot.key));
-    }
-  }
-
-  void _startTouchPaint(LongPressStartDetails details) {
-    final slot = _slotAt(details.localPosition);
-    if (slot == null) return;
-    painting = true;
-    paintValue = !widget.selectedKeys.contains(slot.key);
-    lastSlotKey = slot.key;
-    widget.onPaint(slot, paintValue);
-  }
-
-  void _continueTouchPaint(LongPressMoveUpdateDetails details) =>
-      _paintOnce(_slotAt(details.localPosition));
-
-  void _paintOnce(WeeklyCourseSlot? slot) {
-    if (!painting || slot == null || slot.key == lastSlotKey) return;
-    lastSlotKey = slot.key;
-    widget.onPaint(slot, paintValue);
-  }
-
-  void _cancelPaint() {
-    painting = false;
-    lastSlotKey = null;
-  }
-
-  WeeklyCourseSlot? _slotAt(Offset position) {
-    if (position.dx < hourWidth || position.dy < headerHeight) return null;
-    final slot = WeeklyCourseSlot(
-      weekday:
-          ((position.dx - hourWidth) ~/ dayWidth) +
-          WeeklyCourseSlot.firstWeekday,
-      hour:
-          ((position.dy - headerHeight) ~/ rowHeight) +
-          WeeklyCourseSlot.firstHour,
-    );
-    return slot.isWithinMatrix ? slot : null;
-  }
-}
-
-class _ScheduleLabelCell extends StatelessWidget {
-  const _ScheduleLabelCell({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    alignment: Alignment.center,
-    decoration: const BoxDecoration(
-      color: AppColors.canvas,
-      border: Border(
-        right: BorderSide(color: AppColors.border),
-        bottom: BorderSide(color: AppColors.border),
-      ),
-    ),
-    child: Text(
-      label,
-      maxLines: 1,
-      style: Theme.of(
-        context,
-      ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-    ),
-  );
-}
-
-class _ScheduleMatrixCell extends StatelessWidget {
-  const _ScheduleMatrixCell({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onToggle,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) => FocusableActionDetector(
-    enabled: enabled,
-    shortcuts: const {
-      SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-      SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-    },
-    actions: {
-      ActivateIntent: CallbackAction<ActivateIntent>(
-        onInvoke: (_) {
-          onToggle();
-          return null;
-        },
-      ),
-    },
-    child: Semantics(
-      button: true,
-      selected: selected,
-      enabled: enabled,
-      label: label,
-      onTap: enabled ? onToggle : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 90),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.greenSoft : AppColors.surface,
-          border: const Border(
-            right: BorderSide(color: AppColors.border),
-            bottom: BorderSide(color: AppColors.border),
-          ),
-        ),
-        child: selected
-            ? const Icon(LucideIcons.check, size: 15, color: AppColors.green)
-            : enabled
-            ? const Icon(LucideIcons.plus, size: 11, color: AppColors.border)
-            : null,
-      ),
-    ),
-  );
 }
 
 class _EmptyCourses extends StatelessWidget {

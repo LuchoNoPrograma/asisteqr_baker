@@ -37,6 +37,7 @@ class AdaptiveShell extends ConsumerWidget {
     _NavItem('Asistencia', '/asistencia', LucideIcons.clipboardCheck),
     _NavItem('Estudiantes', '/estudiantes', LucideIcons.graduationCap),
     _NavItem('Docentes', '/docentes', LucideIcons.presentation),
+    _NavItem('Horarios', '/horarios', LucideIcons.calendarClock),
     _NavItem('Reportes', '/reportes', LucideIcons.chartNoAxesCombined),
     _NavItem('Cursos', '/cursos', LucideIcons.school),
     _NavItem(
@@ -67,7 +68,9 @@ class AdaptiveShell extends ConsumerWidget {
         .where((item) => administrator || !item.administratorOnly)
         .toList();
     final managementPage =
-        location == '/estudiantes' || location == '/docentes';
+        location == '/estudiantes' ||
+        location == '/docentes' ||
+        location == '/horarios';
     if (wide) {
       return Scaffold(
         body: Row(
@@ -130,6 +133,13 @@ class AdaptiveShell extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(LucideIcons.presentation, size: 18),
                         title: Text('Docentes'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: '/horarios',
+                      child: ListTile(
+                        leading: Icon(LucideIcons.calendarClock, size: 18),
+                        title: Text('Horarios'),
                       ),
                     ),
                   ],
