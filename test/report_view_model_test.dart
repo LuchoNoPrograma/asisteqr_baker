@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'CP-10 carga el resumen semanal real y exporta el mismo filtro',
+    'CP-10 y CP-11 cargan rangos semanal y mensual y exportan el filtro activo',
     () async {
       final repository = _ReportRepository();
       final model = ReportExportViewModel(repository);
@@ -16,6 +16,15 @@ void main() {
       expect(repository.summaryCourseId, 'course-1');
       expect(await model.export('Semanal'), isTrue);
       expect(repository.exportCourseId, 'course-1');
+      expect(repository.exportFrom, repository.summaryFrom);
+      expect(repository.exportTo, repository.summaryTo);
+
+      await model.load('Mensual', selectedCourseId: 'course-1');
+
+      final now = DateTime.now();
+      expect(repository.summaryFrom, DateTime(now.year, now.month));
+      expect(repository.summaryTo, DateTime(now.year, now.month + 1, 0));
+      expect(await model.export('Mensual'), isTrue);
       expect(repository.exportFrom, repository.summaryFrom);
       expect(repository.exportTo, repository.summaryTo);
     },

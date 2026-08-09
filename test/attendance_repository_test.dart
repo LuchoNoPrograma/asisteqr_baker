@@ -8,7 +8,7 @@ void main() {
   setUp(() => repository = MockAttendanceRepository());
 
   test(
-    'CP-01 registra un QR valido con identidad, curso, fecha y estado',
+    'CP-01, CP-02, CP-04, CP-17, CP-18 y CP-20 resuelven identidad, curso, instante y estado',
     () async {
       final result = await repository.registerQr(
         'AQB1.test_attendance_fixture',
@@ -59,13 +59,24 @@ void main() {
     );
   });
 
-  test('CP-19 filtra registros por curso', () async {
-    final records = await repository.getDaily(course: '4.º Secundaria A');
+  test(
+    'CP-08, CP-09 y CP-19 filtran asistencia y ausencias por curso y estado',
+    () async {
+      final records = await repository.getDaily(course: '4.º Secundaria A');
+      final absences = await repository.getDaily(
+        status: AttendanceStatus.absent,
+      );
 
-    expect(records, isNotEmpty);
-    expect(
-      records.every((record) => record.student.course == '4.º Secundaria A'),
-      isTrue,
-    );
-  });
+      expect(records, isNotEmpty);
+      expect(
+        records.every((record) => record.student.course == '4.º Secundaria A'),
+        isTrue,
+      );
+      expect(absences, isNotEmpty);
+      expect(
+        absences.every((record) => record.status == AttendanceStatus.absent),
+        isTrue,
+      );
+    },
+  );
 }
