@@ -15,7 +15,7 @@ void main() {
   testWidgets('docentes expone Configurar horario en su menú de acciones', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    await tester.binding.setSurfaceSize(const Size(1800, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = ProviderContainer(
       overrides: [

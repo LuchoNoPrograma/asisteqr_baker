@@ -309,16 +309,6 @@ class _TeachersTable extends StatelessWidget {
               ],
             ),
           ),
-          if (canManage)
-            AppDataColumn(
-              label: 'Acciones',
-              cellBuilder: (context, teacher) => _TeacherActionsMenu(
-                active: teacher.status == 'ACTIVO',
-                onEdit: () => onEdit(teacher),
-                onSchedule: () => onSchedule(teacher),
-                onDeactivate: () => onDeactivate(teacher),
-              ),
-            ),
           AppDataColumn(
             label: 'Especialidad',
             compare: (first, second) =>
@@ -343,6 +333,16 @@ class _TeachersTable extends StatelessWidget {
             cellBuilder: (context, teacher) =>
                 _TeacherStatus(active: teacher.status == 'ACTIVO'),
           ),
+          if (canManage)
+            AppDataColumn(
+              label: 'Acciones',
+              cellBuilder: (context, teacher) => _TeacherActionsMenu(
+                active: teacher.status == 'ACTIVO',
+                onEdit: () => onEdit(teacher),
+                onSchedule: () => onSchedule(teacher),
+                onDeactivate: () => onDeactivate(teacher),
+              ),
+            ),
         ],
       ),
     );
