@@ -14,6 +14,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+enum _ScheduleShift { morning, afternoon }
+
+extension on _ScheduleShift {
+  int get startMinutes => switch (this) {
+    _ScheduleShift.morning => 7 * 60 + 30,
+    _ScheduleShift.afternoon => 14 * 60,
+  };
+
+  int get endMinutes => switch (this) {
+    _ScheduleShift.morning => 13 * 60 + 30,
+    _ScheduleShift.afternoon => 20 * 60,
+  };
+
+  String get label => switch (this) {
+    _ScheduleShift.morning => 'Mañana · 07:30–13:30',
+    _ScheduleShift.afternoon => 'Tarde · 14:00–20:00',
+  };
+
+  IconData get icon => switch (this) {
+    _ScheduleShift.morning => LucideIcons.sun,
+    _ScheduleShift.afternoon => LucideIcons.sunset,
+  };
+}
+
 class TeacherScheduleEditorPage extends ConsumerStatefulWidget {
   const TeacherScheduleEditorPage({super.key, required this.teacherId});
 
@@ -27,6 +51,7 @@ class TeacherScheduleEditorPage extends ConsumerStatefulWidget {
 class _TeacherScheduleEditorPageState
     extends ConsumerState<TeacherScheduleEditorPage> {
   int mobileDay = DateTime.monday;
+  _ScheduleShift selectedShift = _ScheduleShift.morning;
 
   TeacherScheduleEditorViewModel get model =>
       ref.read(teacherScheduleEditorViewModelProvider(widget.teacherId));
@@ -71,13 +96,24 @@ class _TeacherScheduleEditorPageState
   Future<void> _addMobileBlock() async {
     final current = model.data;
     if (current == null) return;
+    final rangeStart = math.max(
+      current.config.startMinutes,
+      selectedShift.startMinutes,
+    );
+    final rangeEnd = math.min(
+      current.config.endMinutes,
+      selectedShift.endMinutes,
+    );
+    if (rangeEnd <= rangeStart) return;
     final draft = await showDialog<_ClassBlockDraft>(
       context: context,
       builder: (context) => _ClassBlockDialog(
         data: current,
         weekday: mobileDay,
-        startMinutes: current.config.startMinutes,
-        endMinutes: current.config.startMinutes + 30,
+        startMinutes: rangeStart,
+        endMinutes: rangeStart + 30,
+        rangeStartMinutes: rangeStart,
+        rangeEndMinutes: rangeEnd,
         initialCourseId: model.selectedCourseId,
         initialSubjectId: model.selectedSubjectId,
         initialClassroomId: model.selectedClassroomId,
@@ -127,7 +163,13 @@ class _TeacherScheduleEditorPageState
                     ),
                     if (state.loading || state.saving)
                       const LinearProgressIndicator(minHeight: 2),
-                    _EditorToolbar(model: state, desktop: desktop),
+                    _EditorToolbar(
+                      model: state,
+                      desktop: desktop,
+                      selectedShift: selectedShift,
+                      onShiftChanged: (value) =>
+                          setState(() => selectedShift = value),
+                    ),
                     if (state.error != null)
                       Container(
                         width: double.infinity,
@@ -143,9 +185,13 @@ class _TeacherScheduleEditorPageState
                       ),
                     Expanded(
                       child: desktop
-                          ? _ScheduleMatrix(model: state)
+                          ? _ScheduleMatrix(
+                              model: state,
+                              selectedShift: selectedShift,
+                            )
                           : _MobileDaySchedule(
                               model: state,
+                              selectedShift: selectedShift,
                               selectedDay: mobileDay,
                               onDayChanged: (value) =>
                                   setState(() => mobileDay = value),
@@ -241,15 +287,38 @@ class _TeacherHeader extends StatelessWidget {
 }
 
 class _EditorToolbar extends StatelessWidget {
-  const _EditorToolbar({required this.model, required this.desktop});
+  const _EditorToolbar({
+    required this.model,
+    required this.desktop,
+    required this.selectedShift,
+    required this.onShiftChanged,
+  });
 
   final TeacherScheduleEditorViewModel model;
   final bool desktop;
+  final _ScheduleShift selectedShift;
+  final ValueChanged<_ScheduleShift> onShiftChanged;
 
   @override
   Widget build(BuildContext context) {
     final data = model.data!;
     final controls = <Widget>[
+      SegmentedButton<_ScheduleShift>(
+        showSelectedIcon: false,
+        segments: [
+          for (final shift in _ScheduleShift.values)
+            ButtonSegment(
+              value: shift,
+              icon: Icon(shift.icon, size: 16),
+              label: Text(shift.label),
+              enabled:
+                  data.config.startMinutes < shift.endMinutes &&
+                  data.config.endMinutes > shift.startMinutes,
+            ),
+        ],
+        selected: {selectedShift},
+        onSelectionChanged: (value) => onShiftChanged(value.first),
+      ),
       IconButton.outlined(
         tooltip: 'Deshacer',
         onPressed: model.canUndo ? model.undo : null,
@@ -322,9 +391,10 @@ class _InfoPill extends StatelessWidget {
 }
 
 class _ScheduleMatrix extends StatefulWidget {
-  const _ScheduleMatrix({required this.model});
+  const _ScheduleMatrix({required this.model, required this.selectedShift});
 
   final TeacherScheduleEditorViewModel model;
+  final _ScheduleShift selectedShift;
 
   @override
   State<_ScheduleMatrix> createState() => _ScheduleMatrixState();
@@ -343,6 +413,14 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
   }) async {
     final data = widget.model.data;
     if (data == null) return;
+    final rangeStart = math.max(
+      data.config.startMinutes,
+      widget.selectedShift.startMinutes,
+    );
+    final rangeEnd = math.min(
+      data.config.endMinutes,
+      widget.selectedShift.endMinutes,
+    );
     final draft = await showDialog<_ClassBlockDraft>(
       context: context,
       builder: (context) => _ClassBlockDialog(
@@ -350,6 +428,8 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
         weekday: weekday,
         startMinutes: startMinutes,
         endMinutes: endMinutes,
+        rangeStartMinutes: rangeStart,
+        rangeEndMinutes: rangeEnd,
         initialCourseId: widget.model.selectedCourseId,
         initialSubjectId: widget.model.selectedSubjectId,
         initialClassroomId: widget.model.selectedClassroomId,
@@ -387,7 +467,23 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
   Widget build(BuildContext context) {
     final data = widget.model.data!;
     final config = data.config;
-    final rows = (config.endMinutes - config.startMinutes) ~/ 30;
+    final visibleStart = math.max(
+      config.startMinutes,
+      widget.selectedShift.startMinutes,
+    );
+    final visibleEnd = math.min(
+      config.endMinutes,
+      widget.selectedShift.endMinutes,
+    );
+    if (visibleEnd <= visibleStart) {
+      return const Center(
+        child: Text(
+          'Este turno está fuera de la jornada configurada.',
+          style: TextStyle(color: AppColors.inkMuted),
+        ),
+      );
+    }
+    final rows = (visibleEnd - visibleStart) ~/ 30;
     const gutterWidth = 76.0;
     const dayWidth = 184.0;
     const matrixWidth = gutterWidth + dayWidth * 5;
@@ -452,7 +548,7 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                                   ),
                                   child: Text(
                                     scheduleMinutesToTime(
-                                      config.startMinutes + row * 30,
+                                      visibleStart + row * 30,
                                     ),
                                     style: Theme.of(
                                       context,
@@ -470,14 +566,20 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                             day: day,
                             rows: rows,
                             data: data,
+                            visibleStartMinutes: visibleStart,
+                            visibleEndMinutes: visibleEnd,
                             blocks: widget.model.blocks
-                                .where((item) => item.weekday == day)
+                                .where(
+                                  (item) =>
+                                      item.weekday == day &&
+                                      item.startMinutes < visibleEnd &&
+                                      item.endMinutes > visibleStart,
+                                )
                                 .toList(),
                             selectedStart: dragDay == day ? dragStart : null,
                             selectedEnd: dragDay == day ? dragEnd : null,
                             onTapCell: (row) {
-                              final startMinutes =
-                                  config.startMinutes + row * 30;
+                              final startMinutes = visibleStart + row * 30;
                               final endMinutes = startMinutes + 30;
                               final occupied =
                                   data.breaks.any(
@@ -511,10 +613,8 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                               if (dragStart == null || dragEnd == null) return;
                               final startRow = math.min(dragStart!, dragEnd!);
                               final endRow = math.max(dragStart!, dragEnd!) + 1;
-                              final startMinutes =
-                                  config.startMinutes + startRow * 30;
-                              final endMinutes =
-                                  config.startMinutes + endRow * 30;
+                              final startMinutes = visibleStart + startRow * 30;
+                              final endMinutes = visibleStart + endRow * 30;
                               _clearSelection();
                               _openClassDialog(
                                 weekday: day,
@@ -546,6 +646,8 @@ class _DayColumn extends StatelessWidget {
     required this.day,
     required this.rows,
     required this.data,
+    required this.visibleStartMinutes,
+    required this.visibleEndMinutes,
     required this.blocks,
     required this.onTapCell,
     required this.onDragStart,
@@ -563,6 +665,8 @@ class _DayColumn extends StatelessWidget {
   final int day;
   final int rows;
   final TeacherScheduleEditorData data;
+  final int visibleStartMinutes;
+  final int visibleEndMinutes;
   final List<TeacherScheduleBlock> blocks;
   final int? selectedStart;
   final int? selectedEnd;
@@ -577,7 +681,6 @@ class _DayColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = data.config;
     final startSelection = selectedStart == null || selectedEnd == null
         ? null
         : math.min(selectedStart!, selectedEnd!);
@@ -611,18 +714,31 @@ class _DayColumn extends StatelessWidget {
                   ),
               ],
             ),
-            for (final recess in data.breaks)
+            for (final recess in data.breaks.where(
+              (item) =>
+                  scheduleTimeToMinutes(item.startTime) < visibleEndMinutes &&
+                  scheduleTimeToMinutes(item.endTime) > visibleStartMinutes,
+            ))
               Positioned(
                 top:
-                    (scheduleTimeToMinutes(recess.startTime) -
-                        config.startMinutes) /
+                    (math.max(
+                          scheduleTimeToMinutes(recess.startTime),
+                          visibleStartMinutes,
+                        ) -
+                        visibleStartMinutes) /
                     30 *
                     rowHeight,
                 left: 0,
                 right: 0,
                 height:
-                    (scheduleTimeToMinutes(recess.endTime) -
-                        scheduleTimeToMinutes(recess.startTime)) /
+                    (math.min(
+                          scheduleTimeToMinutes(recess.endTime),
+                          visibleEndMinutes,
+                        ) -
+                        math.max(
+                          scheduleTimeToMinutes(recess.startTime),
+                          visibleStartMinutes,
+                        )) /
                     30 *
                     rowHeight,
                 child: Container(
@@ -655,14 +771,18 @@ class _DayColumn extends StatelessWidget {
             for (final block in blocks)
               Positioned(
                 top:
-                    (block.startMinutes - config.startMinutes) /
+                    (math.max(block.startMinutes, visibleStartMinutes) -
+                            visibleStartMinutes) /
                         30 *
                         rowHeight +
                     2,
                 left: 4,
                 right: 4,
                 height:
-                    (block.endMinutes - block.startMinutes) / 30 * rowHeight -
+                    (math.min(block.endMinutes, visibleEndMinutes) -
+                            math.max(block.startMinutes, visibleStartMinutes)) /
+                        30 *
+                        rowHeight -
                     4,
                 child: _BlockTile(block: block, onRemove: onRemove),
               ),
@@ -769,11 +889,13 @@ class _BlockTile extends StatelessWidget {
 class _MobileDaySchedule extends StatelessWidget {
   const _MobileDaySchedule({
     required this.model,
+    required this.selectedShift,
     required this.selectedDay,
     required this.onDayChanged,
     required this.onAdd,
   });
   final TeacherScheduleEditorViewModel model;
+  final _ScheduleShift selectedShift;
   final int selectedDay;
   final ValueChanged<int> onDayChanged;
   final VoidCallback onAdd;
@@ -781,7 +903,12 @@ class _MobileDaySchedule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blocks = model.blocks
-        .where((item) => item.weekday == selectedDay)
+        .where(
+          (item) =>
+              item.weekday == selectedDay &&
+              item.startMinutes < selectedShift.endMinutes &&
+              item.endMinutes > selectedShift.startMinutes,
+        )
         .toList();
     return Column(
       children: [
@@ -1207,6 +1334,8 @@ class _ClassBlockDialog extends StatefulWidget {
     required this.weekday,
     required this.startMinutes,
     required this.endMinutes,
+    required this.rangeStartMinutes,
+    required this.rangeEndMinutes,
     this.initialCourseId,
     this.initialSubjectId,
     this.initialClassroomId,
@@ -1216,6 +1345,8 @@ class _ClassBlockDialog extends StatefulWidget {
   final int weekday;
   final int startMinutes;
   final int endMinutes;
+  final int rangeStartMinutes;
+  final int rangeEndMinutes;
   final String? initialCourseId;
   final String? initialSubjectId;
   final String? initialClassroomId;
@@ -1234,9 +1365,12 @@ class _ClassBlockDialogState extends State<_ClassBlockDialog> {
   @override
   void initState() {
     super.initState();
-    final config = widget.data.config;
-    start = scheduleMinutesToTime(widget.startMinutes);
-    end = scheduleMinutesToTime(math.min(widget.endMinutes, config.endMinutes));
+    start = scheduleMinutesToTime(
+      math.max(widget.startMinutes, widget.rangeStartMinutes),
+    );
+    end = scheduleMinutesToTime(
+      math.min(widget.endMinutes, widget.rangeEndMinutes),
+    );
     courseId = _validId(
       widget.initialCourseId,
       widget.data.courses.map((item) => item.id),
@@ -1259,8 +1393,8 @@ class _ClassBlockDialogState extends State<_ClassBlockDialog> {
 
   List<String> get times => [
     for (
-      var value = widget.data.config.startMinutes;
-      value <= widget.data.config.endMinutes;
+      var value = widget.rangeStartMinutes;
+      value <= widget.rangeEndMinutes;
       value += 30
     )
       scheduleMinutesToTime(value),
