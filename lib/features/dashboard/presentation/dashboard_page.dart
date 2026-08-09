@@ -54,10 +54,7 @@ class _MobileDashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
       children: [
-        Entrance(child: _PeriodSelector()),
-        const SizedBox(height: 12),
         Entrance(
-          index: 1,
           child: ElevatedButton.icon(
             onPressed: () => context.go('/escaner'),
             icon: const Icon(LucideIcons.scanLine),
@@ -66,7 +63,7 @@ class _MobileDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Entrance(
-          index: 2,
+          index: 1,
           child: Text(
             'Resumen del día',
             style: Theme.of(context).textTheme.titleLarge,
@@ -74,7 +71,7 @@ class _MobileDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Entrance(
-          index: 3,
+          index: 2,
           child: _MetricTile(
             label: 'Total esperados',
             value: '${summary.expected}',
@@ -84,7 +81,7 @@ class _MobileDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Entrance(
-          index: 4,
+          index: 3,
           child: Row(
             children: [
               Expanded(
@@ -107,7 +104,7 @@ class _MobileDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Entrance(
-          index: 5,
+          index: 4,
           child: Row(
             children: [
               Expanded(
@@ -130,7 +127,7 @@ class _MobileDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Entrance(
-          index: 6,
+          index: 5,
           child: _SectionHeader(
             title: 'Últimos registros',
             action: 'Ver todos',
@@ -140,7 +137,7 @@ class _MobileDashboard extends StatelessWidget {
         const SizedBox(height: 8),
         ...summary.recent.asMap().entries.map(
           (entry) => Entrance(
-            index: 7 + entry.key,
+            index: 6 + entry.key,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _RecordTile(record: entry.value),
@@ -225,7 +222,7 @@ class _DesktopDashboard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 3, child: _TrendPanel()),
+            Expanded(flex: 3, child: _AttendanceComposition(summary: summary)),
             const SizedBox(width: 16),
             Expanded(flex: 2, child: _RecentPanel(records: summary.recent)),
           ],
@@ -233,29 +230,6 @@ class _DesktopDashboard extends StatelessWidget {
       ],
     );
   }
-}
-
-class _PeriodSelector extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => DropdownButtonFormField<String>(
-    initialValue: '2026-2',
-    isExpanded: true,
-    decoration: const InputDecoration(
-      labelText: 'Periodo académico',
-      prefixIcon: Icon(LucideIcons.calendarRange, size: 18),
-    ),
-    items: const [
-      DropdownMenuItem(
-        value: '2026-2',
-        child: Text(
-          'Gestión 2026 · Segundo semestre',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    ],
-    onChanged: (_) {},
-  );
 }
 
 class _MetricTile extends StatelessWidget {
@@ -441,7 +415,10 @@ class _DesktopMetric extends StatelessWidget {
   );
 }
 
-class _TrendPanel extends StatelessWidget {
+class _AttendanceComposition extends StatelessWidget {
+  const _AttendanceComposition({required this.summary});
+  final DashboardSummary summary;
+
   @override
   Widget build(BuildContext context) => Container(
     height: 270,
@@ -458,78 +435,84 @@ class _TrendPanel extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Tendencia de asistencia semanal',
+                'Composición de la jornada',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
             const Icon(
-              LucideIcons.chartSpline,
+              LucideIcons.chartNoAxesColumnIncreasing,
               size: 18,
               color: AppColors.navy,
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        const Expanded(
-          child: CustomPaint(painter: _TrendPainter(), size: Size.infinite),
+        const SizedBox(height: 24),
+        _CompositionRow(
+          label: 'Puntuales',
+          value: summary.punctual,
+          total: summary.expected,
+          color: AppColors.green,
         ),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Lun'),
-            Text('Mar'),
-            Text('Mié'),
-            Text('Jue'),
-            Text('Vie'),
-          ],
+        const SizedBox(height: 18),
+        _CompositionRow(
+          label: 'Atrasados',
+          value: summary.late,
+          total: summary.expected,
+          color: AppColors.amber,
+        ),
+        const SizedBox(height: 18),
+        _CompositionRow(
+          label: 'Ausentes',
+          value: summary.absent,
+          total: summary.expected,
+          color: AppColors.red,
         ),
       ],
     ),
   );
 }
 
-class _TrendPainter extends CustomPainter {
-  const _TrendPainter();
-  @override
-  void paint(Canvas canvas, Size size) {
-    final grid = Paint()
-      ..color = AppColors.border
-      ..strokeWidth = 1;
-    for (var i = 1; i < 4; i++) {
-      canvas.drawLine(
-        Offset(0, size.height * i / 4),
-        Offset(size.width, size.height * i / 4),
-        grid,
-      );
-    }
-    final points = <Offset>[
-      Offset(0, size.height * .78),
-      Offset(size.width * .24, size.height * .57),
-      Offset(size.width * .48, size.height * .63),
-      Offset(size.width * .72, size.height * .28),
-      Offset(size.width, size.height * .12),
-    ];
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (final point in points.skip(1)) {
-      path.lineTo(point.dx, point.dy);
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = AppColors.navy
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-    for (final point in points) {
-      canvas.drawCircle(point, 4, Paint()..color = AppColors.surface);
-      canvas.drawCircle(point, 3, Paint()..color = AppColors.navy);
-    }
-  }
+class _CompositionRow extends StatelessWidget {
+  const _CompositionRow({
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.color,
+  });
+  final String label;
+  final int value;
+  final int total;
+  final Color color;
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
+    return Semantics(
+      label: label,
+      value: '$value de $total estudiantes',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(label)),
+              Text(
+                '$value',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            color: color,
+            backgroundColor: AppColors.canvas,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RecentPanel extends StatelessWidget {

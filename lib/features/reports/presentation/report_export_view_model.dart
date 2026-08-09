@@ -16,8 +16,12 @@ class ReportExportViewModel extends ChangeNotifier {
   DateTime? to;
   String? courseId;
 
-  Future<void> load(String period, {String? selectedCourseId}) async {
-    final range = _range(period);
+  Future<void> load(
+    String period, {
+    String? selectedCourseId,
+    DateTime? referenceDate,
+  }) async {
+    final range = _range(period, referenceDate ?? DateTime.now());
     loading = true;
     loadError = null;
     courseId = selectedCourseId;
@@ -43,7 +47,7 @@ class ReportExportViewModel extends ChangeNotifier {
     message = null;
     notifyListeners();
 
-    final range = _range(period);
+    final range = _range(period, DateTime.now());
     final exportFrom = from ?? range.$1;
     final exportTo = to ?? range.$2;
 
@@ -65,15 +69,36 @@ class ReportExportViewModel extends ChangeNotifier {
     }
   }
 
-  (DateTime, DateTime) _range(String period) {
+  (DateTime, DateTime) _range(String period, DateTime referenceDate) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = DateTime(
+      referenceDate.year,
+      referenceDate.month,
+      referenceDate.day,
+    );
+    DateTime notAfterToday(DateTime value) =>
+        value.isAfter(today) ? today : value;
     return switch (period) {
-      'Diario' => (DateTime(now.year, now.month, now.day), now),
+      'Diario' => (selected, selected),
       'Mensual' => (
-        DateTime(now.year, now.month),
-        DateTime(now.year, now.month + 1, 0),
+        DateTime(selected.year, selected.month),
+        notAfterToday(DateTime(selected.year, selected.month + 1, 0)),
       ),
-      _ => (DateTime(now.year, now.month, now.day - now.weekday + 1), now),
+      _ => (
+        DateTime(
+          selected.year,
+          selected.month,
+          selected.day - selected.weekday + 1,
+        ),
+        notAfterToday(
+          DateTime(
+            selected.year,
+            selected.month,
+            selected.day - selected.weekday + 7,
+          ),
+        ),
+      ),
     };
   }
 }

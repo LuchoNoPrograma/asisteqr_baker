@@ -19,13 +19,12 @@ class MockAttendanceRepository implements AttendanceRepository {
         photoSource: 'assets/images/valeria-mendoza.png',
       );
 
-  List<AttendanceRecord> get _records {
-    final now = DateTime.now();
+  List<AttendanceRecord> _recordsAt(DateTime date) {
     return [
       AttendanceRecord(
         id: 'a1',
         student: _valeria,
-        timestamp: DateTime(now.year, now.month, now.day, 7, 52),
+        timestamp: DateTime(date.year, date.month, date.day, 7, 52),
         status: AttendanceStatus.punctual,
       ),
       AttendanceRecord(
@@ -36,7 +35,7 @@ class MockAttendanceRepository implements AttendanceRepository {
           'Carlos Martínez Silva',
           '4.º Secundaria A',
         ),
-        timestamp: DateTime(now.year, now.month, now.day, 8, 15),
+        timestamp: DateTime(date.year, date.month, date.day, 8, 15),
         status: AttendanceStatus.late,
       ),
       AttendanceRecord(
@@ -47,7 +46,7 @@ class MockAttendanceRepository implements AttendanceRepository {
           'Ana Lucía Torres',
           '5.º Secundaria C',
         ),
-        timestamp: DateTime(now.year, now.month, now.day, 7, 58),
+        timestamp: DateTime(date.year, date.month, date.day, 7, 58),
         status: AttendanceStatus.punctual,
       ),
       AttendanceRecord(
@@ -58,7 +57,7 @@ class MockAttendanceRepository implements AttendanceRepository {
           'Javier López Quispe',
           '3.º Secundaria B',
         ),
-        timestamp: DateTime(now.year, now.month, now.day, 8, 21),
+        timestamp: DateTime(date.year, date.month, date.day, 8, 21),
         status: AttendanceStatus.absent,
       ),
     ];
@@ -67,13 +66,14 @@ class MockAttendanceRepository implements AttendanceRepository {
   @override
   Future<DashboardSummary> getDashboard() async {
     await Future<void>.delayed(const Duration(milliseconds: 420));
+    final records = _recordsAt(DateTime.now());
     return DashboardSummary(
       expected: 342,
       present: 310,
       punctual: 285,
       late: 25,
       absent: 32,
-      recent: _records.take(3).toList(),
+      recent: records.take(3).toList(),
     );
   }
 
@@ -122,11 +122,13 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<AttendanceRecord>> getDaily({
+    DateTime? date,
+    String? courseId,
     String? course,
     AttendanceStatus? status,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return _records.where((item) {
+    return _recordsAt(date ?? DateTime.now()).where((item) {
       final matchesCourse = course == null || item.student.course == course;
       final matchesStatus = status == null || item.status == status;
       return matchesCourse && matchesStatus;

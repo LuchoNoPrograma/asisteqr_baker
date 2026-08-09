@@ -39,13 +39,20 @@ class MockPeopleRepository implements PeopleRepository {
   Future<List<CourseOption>> getCourses() async => courses;
 
   @override
-  Future<List<StudentEntry>> getStudents({String? search}) async => students
-      .where(
-        (item) =>
-            search == null ||
-            item.fullName.toLowerCase().contains(search.toLowerCase()),
-      )
-      .toList();
+  Future<List<StudentEntry>> getStudents({
+    String? search,
+    String? courseId,
+  }) async => students.where((item) {
+    final normalizedSearch = search?.trim().toLowerCase();
+    final matchesSearch =
+        normalizedSearch == null ||
+        normalizedSearch.isEmpty ||
+        item.fullName.toLowerCase().contains(normalizedSearch) ||
+        item.documentNumber?.toLowerCase().contains(normalizedSearch) == true ||
+        item.studentCode.toString().contains(normalizedSearch);
+    final matchesCourse = courseId == null || item.course?.id == courseId;
+    return matchesSearch && matchesCourse;
+  }).toList();
 
   @override
   Future<StudentEntry> createStudent(StudentDraft draft) async {

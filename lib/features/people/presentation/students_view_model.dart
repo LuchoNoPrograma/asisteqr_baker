@@ -13,15 +13,21 @@ class StudentsViewModel extends ChangeNotifier {
   bool loading = false;
   bool saving = false;
   String? error;
+  String? courseId;
   Timer? _debounce;
+  String _search = '';
 
   Future<void> load({String? search}) async {
+    if (search != null) _search = search;
     loading = true;
     error = null;
     notifyListeners();
     try {
       final results = await Future.wait([
-        _repository.getStudents(search: search),
+        _repository.getStudents(
+          search: _search.trim().isEmpty ? null : _search.trim(),
+          courseId: courseId,
+        ),
         _repository.getCourses(),
       ]);
       students = results[0] as List<StudentEntry>;
@@ -35,11 +41,15 @@ class StudentsViewModel extends ChangeNotifier {
   }
 
   void search(String value) {
+    _search = value;
     _debounce?.cancel();
-    _debounce = Timer(
-      const Duration(milliseconds: 320),
-      () => load(search: value),
-    );
+    _debounce = Timer(const Duration(milliseconds: 320), load);
+  }
+
+  Future<void> filterCourse(String? value) {
+    _debounce?.cancel();
+    courseId = value;
+    return load();
   }
 
   Future<bool> save(StudentDraft draft, {StudentEntry? current}) async {

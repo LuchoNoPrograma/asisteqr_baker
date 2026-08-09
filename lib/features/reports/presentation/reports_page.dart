@@ -19,6 +19,7 @@ class ReportsPage extends ConsumerStatefulWidget {
 class _ReportsPageState extends ConsumerState<ReportsPage> {
   String period = 'Semanal';
   String? courseId;
+  DateTime referenceDate = DateUtils.dateOnly(DateTime.now());
 
   @override
   void initState() {
@@ -28,7 +29,20 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   Future<void> _load() => ref
       .read(reportExportViewModelProvider)
-      .load(period, selectedCourseId: courseId);
+      .load(period, selectedCourseId: courseId, referenceDate: referenceDate);
+
+  Future<void> _selectReferenceDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: referenceDate,
+      firstDate: DateTime(2020),
+      lastDate: DateUtils.dateOnly(DateTime.now()),
+      helpText: 'Seleccionar periodo del reporte',
+    );
+    if (selected == null || !mounted) return;
+    setState(() => referenceDate = DateUtils.dateOnly(selected));
+    await _load();
+  }
 
   Future<void> _exportPdf() async {
     final model = ref.read(reportExportViewModelProvider);
@@ -56,6 +70,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   void _setCourse(String? value) {
     setState(() => courseId = value);
+    _load();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      courseId = null;
+      referenceDate = DateUtils.dateOnly(DateTime.now());
+    });
     _load();
   }
 
@@ -139,8 +161,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             courseId: courseId,
             from: report.from,
             to: report.to,
+            onDatePressed: _selectReferenceDate,
             onCourseChanged: _setCourse,
-            onClear: courseId == null ? null : () => _setCourse(null),
+            onClear:
+                courseId == null &&
+                    DateUtils.isSameDay(referenceDate, DateTime.now())
+                ? null
+                : _clearFilters,
           ),
           if (report.loading) ...[
             const SizedBox(height: 12),
@@ -182,6 +209,7 @@ class _ReportFilters extends StatelessWidget {
     required this.courseId,
     required this.from,
     required this.to,
+    required this.onDatePressed,
     required this.onCourseChanged,
     required this.onClear,
   });
@@ -190,6 +218,7 @@ class _ReportFilters extends StatelessWidget {
   final String? courseId;
   final DateTime? from;
   final DateTime? to;
+  final VoidCallback onDatePressed;
   final ValueChanged<String?> onCourseChanged;
   final VoidCallback? onClear;
 
@@ -206,6 +235,7 @@ class _ReportFilters extends StatelessWidget {
           SizedBox(
             width: horizontal ? 270 : constraints.maxWidth,
             child: DropdownButtonFormField<String?>(
+              key: ValueKey(courseId),
               initialValue: courseId,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Curso'),
@@ -226,9 +256,10 @@ class _ReportFilters extends StatelessWidget {
           ),
           SizedBox(
             width: horizontal ? 240 : constraints.maxWidth,
-            child: InputDecorator(
-              decoration: const InputDecoration(labelText: 'Rango'),
-              child: Text(range, maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: OutlinedButton.icon(
+              onPressed: onDatePressed,
+              icon: const Icon(LucideIcons.calendarSearch, size: 17),
+              label: Text(range, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
           OutlinedButton.icon(

@@ -19,7 +19,8 @@ class AttendancePage extends ConsumerStatefulWidget {
 class _AttendancePageState extends ConsumerState<AttendancePage> {
   List<AttendanceRecord>? records;
   AttendanceStatus? status;
-  String? course;
+  String? courseId;
+  DateTime date = DateUtils.dateOnly(DateTime.now());
   String? loadError;
 
   @override
@@ -36,7 +37,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     try {
       final result = await ref
           .read(attendanceRepositoryProvider)
-          .getDaily(course: course, status: status);
+          .getDaily(date: date, courseId: courseId, status: status);
       if (mounted) setState(() => records = result);
     } on Object {
       if (mounted) {
@@ -45,8 +46,22 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     }
   }
 
+  Future<void> _selectDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: date,
+      firstDate: DateTime(2020),
+      lastDate: DateUtils.dateOnly(DateTime.now()),
+      helpText: 'Seleccionar jornada',
+    );
+    if (selected == null || !mounted) return;
+    setState(() => date = DateUtils.dateOnly(selected));
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final courses = ref.watch(coursesViewModelProvider).courses;
     return AdaptiveShell(
       location: '/asistencia',
       title: 'Asistencia',
@@ -80,10 +95,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
               _pageHeader(wide: false),
               const SizedBox(height: 18),
               _Filters(
-                course: course,
+                courses: [
+                  for (final course in courses)
+                    (id: course.id, name: course.name),
+                ],
+                courseId: courseId,
                 status: status,
+                date: date,
+                onDatePressed: _selectDate,
                 onCourseChanged: (value) {
-                  course = value;
+                  courseId = value;
                   _load();
                 },
                 onStatusChanged: (value) {
@@ -91,8 +112,9 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                   _load();
                 },
                 onClear: () {
-                  course = null;
+                  courseId = null;
                   status = null;
+                  date = DateUtils.dateOnly(DateTime.now());
                   _load();
                 },
               ),
@@ -151,20 +173,32 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           ],
         ),
       ),
+      if (wide)
+        OutlinedButton.icon(
+          onPressed: _selectDate,
+          icon: const Icon(LucideIcons.calendarDays, size: 18),
+          label: Text(DateFormat('dd/MM/yyyy').format(date)),
+        ),
     ],
   );
 }
 
 class _Filters extends StatelessWidget {
   const _Filters({
-    required this.course,
+    required this.courses,
+    required this.courseId,
     required this.status,
+    required this.date,
+    required this.onDatePressed,
     required this.onCourseChanged,
     required this.onStatusChanged,
     required this.onClear,
   });
-  final String? course;
+  final List<({String id, String name})> courses;
+  final String? courseId;
   final AttendanceStatus? status;
+  final DateTime date;
+  final VoidCallback onDatePressed;
   final ValueChanged<String?> onCourseChanged;
   final ValueChanged<AttendanceStatus?> onStatusChanged;
   final VoidCallback onClear;
@@ -183,30 +217,32 @@ class _Filters extends StatelessWidget {
       children: [
         SizedBox(
           width: 230,
+          child: OutlinedButton.icon(
+            onPressed: onDatePressed,
+            icon: const Icon(LucideIcons.calendarDays, size: 18),
+            label: Text(DateFormat('dd/MM/yyyy').format(date)),
+          ),
+        ),
+        SizedBox(
+          width: 230,
           child: DropdownButtonFormField<String>(
-            initialValue: course,
+            key: ValueKey(courseId),
+            initialValue: courseId,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Curso',
               prefixIcon: Icon(LucideIcons.school, size: 17),
             ),
-            items: const [
-              DropdownMenuItem(
-                value: '4.º Secundaria B',
-                child: Text(
-                  '4.º Secundaria B',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            items: [
+              for (final course in courses)
+                DropdownMenuItem(
+                  value: course.id,
+                  child: Text(
+                    course.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              DropdownMenuItem(
-                value: '4.º Secundaria A',
-                child: Text(
-                  '4.º Secundaria A',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
             ],
             onChanged: onCourseChanged,
           ),
@@ -214,6 +250,7 @@ class _Filters extends StatelessWidget {
         SizedBox(
           width: 190,
           child: DropdownButtonFormField<AttendanceStatus>(
+            key: ValueKey(status),
             initialValue: status,
             isExpanded: true,
             decoration: const InputDecoration(

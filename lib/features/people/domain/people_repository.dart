@@ -2,7 +2,7 @@ import 'package:asisteqr_baker/features/people/domain/people_models.dart';
 
 abstract interface class PeopleRepository {
   Future<List<CourseOption>> getCourses();
-  Future<List<StudentEntry>> getStudents({String? search});
+  Future<List<StudentEntry>> getStudents({String? search, String? courseId});
   Future<StudentEntry> createStudent(StudentDraft draft);
   Future<StudentEntry> updateStudent(String id, StudentDraft draft);
   Future<void> retireStudent(String id);

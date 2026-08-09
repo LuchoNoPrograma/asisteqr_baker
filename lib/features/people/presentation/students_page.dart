@@ -149,6 +149,34 @@ class StudentsPage extends ConsumerWidget {
                           prefixIcon: Icon(LucideIcons.search, size: 18),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey(model.courseId),
+                        initialValue: model.courseId ?? '',
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Curso',
+                          prefixIcon: Icon(LucideIcons.school, size: 18),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('Todos los cursos'),
+                          ),
+                          for (final course in model.courses)
+                            DropdownMenuItem(
+                              value: course.id,
+                              child: Text(
+                                course.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                        onChanged: (value) => model.filterCourse(
+                          value == null || value.isEmpty ? null : value,
+                        ),
+                      ),
                     ],
                   ],
                 ),

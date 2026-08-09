@@ -38,6 +38,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   );
   bool _handling = false;
   bool _startingCamera = false;
+  Timer? _readabilityTimer;
 
   bool get _usesMobileScanner =>
       kIsWeb ||
@@ -50,8 +51,32 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     super.initState();
     if (_usesMobileScanner) {
       WidgetsBinding.instance.addObserver(this);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_usesMobileScanner) unawaited(_startScanner());
+      _scheduleReadabilityHint();
+    });
+  }
+
+  void _scheduleReadabilityHint() {
+    _readabilityTimer?.cancel();
+    _readabilityTimer = Timer(const Duration(seconds: 12), () {
+      if (!mounted || _handling) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text(
+              'No se pudo leer el código. Reubica la credencial y vuelve a intentarlo.',
+            ),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: _scheduleReadabilityHint,
+            ),
+          ),
+        );
+    });
   }
 
   Future<void> _startScanner() async {
@@ -75,9 +100,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     switch (state) {
       case AppLifecycleState.resumed:
         unawaited(_startScanner());
+        _scheduleReadabilityHint();
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+        _readabilityTimer?.cancel();
         unawaited(_scanner.stop());
       case AppLifecycleState.detached:
         break;
@@ -86,6 +113,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   @override
   void dispose() {
+    _readabilityTimer?.cancel();
     if (_usesMobileScanner) WidgetsBinding.instance.removeObserver(this);
     unawaited(_scanner.dispose());
     super.dispose();
@@ -93,6 +121,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
 
   Future<void> _submit(String token) async {
     if (_handling) return;
+    _readabilityTimer?.cancel();
     _handling = true;
     if (_usesMobileScanner) await _scanner.stop();
     final result = await ref.read(scannerViewModelProvider).submit(token);
@@ -105,6 +134,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _handling = false;
       ref.read(scannerViewModelProvider).retry();
       await _startScanner();
+      _scheduleReadabilityHint();
     } else {
       await HapticFeedback.vibrate();
       if (!mounted) return;
@@ -112,6 +142,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       _handling = false;
       ref.read(scannerViewModelProvider).retry();
       await _startScanner();
+      _scheduleReadabilityHint();
     }
   }
 
@@ -133,6 +164,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   }
 
   Future<void> _manualEntry() async {
+    _readabilityTimer?.cancel();
     final controller = TextEditingController();
     final token = await showDialog<String>(
       context: context,
@@ -163,7 +195,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
     );
     controller.dispose();
-    if (token != null && token.trim().isNotEmpty) await _submit(token);
+    if (token != null && token.trim().isNotEmpty) {
+      await _submit(token);
+    } else {
+      _scheduleReadabilityHint();
+    }
   }
 
   @override

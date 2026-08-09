@@ -4,6 +4,8 @@ abstract interface class AttendanceRepository {
   Future<DashboardSummary> getDashboard();
   Future<ScanResult> registerQr(String qrToken);
   Future<List<AttendanceRecord>> getDaily({
+    DateTime? date,
+    String? courseId,
     String? course,
     AttendanceStatus? status,
   });

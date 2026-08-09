@@ -27,11 +27,14 @@ class ApiPeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<List<StudentEntry>> getStudents({String? search}) async {
+  Future<List<StudentEntry>> getStudents({
+    String? search,
+    String? courseId,
+  }) async {
     try {
       final response = await _client.dio.get<List<dynamic>>(
         '/estudiantes',
-        queryParameters: {'buscar': ?search},
+        queryParameters: {'buscar': ?search, 'cursoId': ?courseId},
       );
       return response.data!
           .map((item) => _student(item as Map<String, dynamic>))

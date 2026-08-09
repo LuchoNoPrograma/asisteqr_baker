@@ -2,6 +2,7 @@ import 'package:asisteqr_baker/core/network/api_client.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_repository.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 
 class ApiAttendanceRepository implements AttendanceRepository {
   ApiAttendanceRepository(this._client);
@@ -17,15 +18,16 @@ class ApiAttendanceRepository implements AttendanceRepository {
       return _scanFromJson(response.data!);
     } on DioException catch (error) {
       final status = error.response?.statusCode;
-      final message = (error.response?.data as Map?)?['mensaje']?.toString();
-      throw AttendanceException(
-        status == 404
-            ? AttendanceFailureKind.invalidQr
-            : status == 403
-            ? AttendanceFailureKind.unauthorized
-            : AttendanceFailureKind.network,
-        message ?? 'No se pudo validar la credencial. Revisa la conexión.',
-      );
+      final body = error.response?.data;
+      final message = body is Map
+          ? (body['message'] ?? body['mensaje'])?.toString()
+          : null;
+      throw AttendanceException(switch (status) {
+        401 || 403 => AttendanceFailureKind.unauthorized,
+        404 => AttendanceFailureKind.invalidQr,
+        400 => AttendanceFailureKind.inactiveStudent,
+        _ => AttendanceFailureKind.network,
+      }, message ?? 'No se pudo validar la credencial. Revisa la conexión.');
     }
   }
 
@@ -53,11 +55,17 @@ class ApiAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<AttendanceRecord>> getDaily({
+    DateTime? date,
+    String? courseId,
     String? course,
     AttendanceStatus? status,
   }) async {
+    final formattedDate = date == null
+        ? null
+        : DateFormat('yyyy-MM-dd').format(date);
     final response = await _client.dio.get<List<dynamic>>(
       '/asistencias/diaria',
+      queryParameters: {'fecha': ?formattedDate, 'cursoId': ?courseId},
     );
     return response.data!
         .map((item) => _dailyFromJson(item as Map<String, dynamic>))
