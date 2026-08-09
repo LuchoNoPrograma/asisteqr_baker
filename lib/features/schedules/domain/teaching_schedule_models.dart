@@ -57,8 +57,6 @@ const weekdayLabels = {
   DateTime.wednesday: 'Miércoles',
   DateTime.thursday: 'Jueves',
   DateTime.friday: 'Viernes',
-  DateTime.saturday: 'Sábado',
-  DateTime.sunday: 'Domingo',
 };
 
 class TeachingScheduleException implements Exception {
