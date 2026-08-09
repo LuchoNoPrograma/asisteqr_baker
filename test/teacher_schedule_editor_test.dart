@@ -1,5 +1,7 @@
 import 'package:asisteqr_baker/app/providers.dart';
 import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
+import 'package:asisteqr_baker/features/people/data/mock_people_repository.dart';
+import 'package:asisteqr_baker/features/people/presentation/teachers_page.dart';
 import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_models.dart';
 import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_repository.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_editor_page.dart';
@@ -7,8 +9,46 @@ import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
+  testWidgets('docentes expone Configurar horario en su menú de acciones', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(MockAuthRepository()),
+        peopleRepositoryProvider.overrideWithValue(MockPeopleRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.runAsync(
+      () => container
+          .read(sessionViewModelProvider)
+          .signIn(
+            MockAuthRepository.testUsername,
+            MockAuthRepository.testPassword,
+          ),
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: TeachersPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(find.byTooltip('Acciones del docente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Configurar horario'), findsOneWidget);
+    expect(find.byIcon(LucideIcons.calendarClock), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'edita por rangos, bloquea recreos y guarda la matriz una sola vez',
     () async {

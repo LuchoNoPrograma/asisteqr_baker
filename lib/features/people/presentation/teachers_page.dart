@@ -309,6 +309,16 @@ class _TeachersTable extends StatelessWidget {
               ],
             ),
           ),
+          if (canManage)
+            AppDataColumn(
+              label: 'Acciones',
+              cellBuilder: (context, teacher) => _TeacherActionsMenu(
+                active: teacher.status == 'ACTIVO',
+                onEdit: () => onEdit(teacher),
+                onSchedule: () => onSchedule(teacher),
+                onDeactivate: () => onDeactivate(teacher),
+              ),
+            ),
           AppDataColumn(
             label: 'Especialidad',
             compare: (first, second) =>
@@ -333,34 +343,6 @@ class _TeachersTable extends StatelessWidget {
             cellBuilder: (context, teacher) =>
                 _TeacherStatus(active: teacher.status == 'ACTIVO'),
           ),
-          if (canManage)
-            AppDataColumn(
-              label: 'Acciones',
-              cellBuilder: (context, teacher) => Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Configurar horario',
-                    onPressed: teacher.status == 'ACTIVO'
-                        ? () => onSchedule(teacher)
-                        : null,
-                    icon: const Icon(LucideIcons.calendarClock, size: 17),
-                  ),
-                  IconButton(
-                    tooltip: 'Editar',
-                    onPressed: () => onEdit(teacher),
-                    icon: const Icon(LucideIcons.pencil, size: 17),
-                  ),
-                  IconButton(
-                    tooltip: 'Inactivar',
-                    onPressed: teacher.status == 'ACTIVO'
-                        ? () => onDeactivate(teacher)
-                        : null,
-                    icon: const Icon(LucideIcons.userRoundX, size: 17),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -421,28 +403,103 @@ class _TeacherTile extends StatelessWidget {
         ),
         _TeacherStatus(active: teacher.status == 'ACTIVO'),
         if (canManage)
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'schedule') return onSchedule();
-              if (value == 'edit') return onEdit();
-              onDeactivate();
-            },
-            itemBuilder: (context) => [
-              if (teacher.status == 'ACTIVO')
-                const PopupMenuItem(
-                  value: 'schedule',
-                  child: Text('Configurar horario'),
-                ),
-              const PopupMenuItem(value: 'edit', child: Text('Editar')),
-              if (teacher.status == 'ACTIVO')
-                const PopupMenuItem(
-                  value: 'deactivate',
-                  child: Text('Inactivar'),
-                ),
-            ],
+          _TeacherActionsMenu(
+            active: teacher.status == 'ACTIVO',
+            onEdit: onEdit,
+            onSchedule: onSchedule,
+            onDeactivate: onDeactivate,
           ),
       ],
     ),
+  );
+}
+
+enum _TeacherAction { edit, schedule, deactivate }
+
+class _TeacherActionsMenu extends StatelessWidget {
+  const _TeacherActionsMenu({
+    required this.active,
+    required this.onEdit,
+    required this.onSchedule,
+    required this.onDeactivate,
+  });
+
+  final bool active;
+  final VoidCallback onEdit;
+  final VoidCallback onSchedule;
+  final VoidCallback onDeactivate;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<_TeacherAction>(
+    tooltip: 'Acciones del docente',
+    onSelected: (action) {
+      switch (action) {
+        case _TeacherAction.edit:
+          onEdit();
+          break;
+        case _TeacherAction.schedule:
+          onSchedule();
+          break;
+        case _TeacherAction.deactivate:
+          onDeactivate();
+          break;
+      }
+    },
+    itemBuilder: (context) => [
+      const PopupMenuItem(
+        value: _TeacherAction.edit,
+        child: _TeacherMenuItem(
+          icon: LucideIcons.pencil,
+          label: 'Editar docente',
+        ),
+      ),
+      if (active)
+        const PopupMenuItem(
+          value: _TeacherAction.schedule,
+          child: _TeacherMenuItem(
+            icon: LucideIcons.settings2,
+            label: 'Configurar horario',
+          ),
+        ),
+      if (active) const PopupMenuDivider(),
+      if (active)
+        const PopupMenuItem(
+          value: _TeacherAction.deactivate,
+          child: _TeacherMenuItem(
+            icon: LucideIcons.userRoundX,
+            label: 'Inactivar docente',
+            destructive: true,
+          ),
+        ),
+    ],
+  );
+}
+
+class _TeacherMenuItem extends StatelessWidget {
+  const _TeacherMenuItem({
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 18, color: destructive ? AppColors.red : null),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: destructive ? const TextStyle(color: AppColors.red) : null,
+        ),
+      ),
+    ],
   );
 }
 
