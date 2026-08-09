@@ -331,7 +331,7 @@ class _ScheduleMatrix extends StatefulWidget {
 }
 
 class _ScheduleMatrixState extends State<_ScheduleMatrix> {
-  static const rowHeight = 52.0;
+  static const rowHeight = 32.0;
   int? dragDay;
   int? dragStart;
   int? dragEnd;
@@ -681,6 +681,7 @@ class _BlockTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      final compact = constraints.maxHeight < 44;
       final detailed = constraints.maxHeight >= 76;
       return Material(
         color: AppColors.blueSoft,
@@ -714,19 +715,21 @@ class _BlockTile extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        detailed
-                            ? block.courseName
-                            : '${block.startTime}–${block.endTime} · ${block.classroomName}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          height: 1.1,
-                          color: AppColors.inkMuted,
+                      if (!compact) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          detailed
+                              ? block.courseName
+                              : '${block.startTime}–${block.endTime} · ${block.classroomName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            height: 1.1,
+                            color: AppColors.inkMuted,
+                          ),
                         ),
-                      ),
+                      ],
                       if (detailed) ...[
                         const SizedBox(height: 2),
                         Text(
@@ -748,8 +751,8 @@ class _BlockTile extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                   ),
                   onPressed: () => onRemove(block.id),
                   icon: const Icon(LucideIcons.x, size: 14),
@@ -933,7 +936,7 @@ class _GeneralConfigDialogState extends State<_GeneralConfigDialog> {
   late List<_BreakDraft> breaks;
 
   List<String> get times => [
-    for (var value = 6 * 60; value <= 18 * 60; value += 30)
+    for (var value = 6 * 60; value <= 20 * 60; value += 30)
       scheduleMinutesToTime(value),
   ];
 
