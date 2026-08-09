@@ -11,6 +11,7 @@ import 'package:asisteqr_baker/features/people/presentation/person_image_crop_di
 import 'package:asisteqr_baker/features/people/presentation/person_photo_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class TeachersPage extends ConsumerWidget {
@@ -169,6 +170,8 @@ class TeachersPage extends ConsumerWidget {
                         teachers: model.teachers,
                         canManage: canManage,
                         onEdit: (item) => _edit(context, ref, item),
+                        onSchedule: (item) =>
+                            context.go('/docentes/${item.id}/horario'),
                         onDeactivate: (item) => _deactivate(context, ref, item),
                       )
                     : ListView.builder(
@@ -180,6 +183,8 @@ class TeachersPage extends ConsumerWidget {
                             teacher: teacher,
                             canManage: canManage,
                             onEdit: () => _edit(context, ref, teacher),
+                            onSchedule: () =>
+                                context.go('/docentes/${teacher.id}/horario'),
                             onDeactivate: () =>
                                 _deactivate(context, ref, teacher),
                           );
@@ -199,11 +204,13 @@ class _TeachersTable extends StatelessWidget {
     required this.teachers,
     required this.canManage,
     required this.onEdit,
+    required this.onSchedule,
     required this.onDeactivate,
   });
   final List<TeacherEntry> teachers;
   final bool canManage;
   final ValueChanged<TeacherEntry> onEdit;
+  final ValueChanged<TeacherEntry> onSchedule;
   final ValueChanged<TeacherEntry> onDeactivate;
 
   @override
@@ -333,6 +340,13 @@ class _TeachersTable extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
+                    tooltip: 'Configurar horario',
+                    onPressed: teacher.status == 'ACTIVO'
+                        ? () => onSchedule(teacher)
+                        : null,
+                    icon: const Icon(LucideIcons.calendarClock, size: 17),
+                  ),
+                  IconButton(
                     tooltip: 'Editar',
                     onPressed: () => onEdit(teacher),
                     icon: const Icon(LucideIcons.pencil, size: 17),
@@ -358,11 +372,13 @@ class _TeacherTile extends StatelessWidget {
     required this.teacher,
     required this.canManage,
     required this.onEdit,
+    required this.onSchedule,
     required this.onDeactivate,
   });
   final TeacherEntry teacher;
   final bool canManage;
   final VoidCallback onEdit;
+  final VoidCallback onSchedule;
   final VoidCallback onDeactivate;
 
   @override
@@ -406,8 +422,17 @@ class _TeacherTile extends StatelessWidget {
         _TeacherStatus(active: teacher.status == 'ACTIVO'),
         if (canManage)
           PopupMenuButton<String>(
-            onSelected: (value) => value == 'edit' ? onEdit() : onDeactivate(),
+            onSelected: (value) {
+              if (value == 'schedule') return onSchedule();
+              if (value == 'edit') return onEdit();
+              onDeactivate();
+            },
             itemBuilder: (context) => [
+              if (teacher.status == 'ACTIVO')
+                const PopupMenuItem(
+                  value: 'schedule',
+                  child: Text('Configurar horario'),
+                ),
               const PopupMenuItem(value: 'edit', child: Text('Editar')),
               if (teacher.status == 'ACTIVO')
                 const PopupMenuItem(

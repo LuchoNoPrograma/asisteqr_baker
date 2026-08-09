@@ -16,6 +16,7 @@ import 'package:asisteqr_baker/features/credentials/presentation/credentials_pag
 import 'package:asisteqr_baker/features/reports/presentation/courses_page.dart';
 import 'package:asisteqr_baker/features/reports/presentation/reports_page.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_page.dart';
+import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_editor_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -111,6 +112,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/docentes',
         pageBuilder: (context, state) => _fadePage(state, const TeachersPage()),
+      ),
+      GoRoute(
+        path: '/docentes/:docenteId/horario',
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          TeacherScheduleEditorPage(
+            teacherId: state.pathParameters['docenteId']!,
+          ),
+        ),
       ),
       GoRoute(
         path: '/horarios',
