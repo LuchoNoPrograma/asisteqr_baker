@@ -70,10 +70,10 @@ Construir una aplicacion Flutter profesional para docentes y administradores, ba
 - [x] Conectar repositorios HTTP al contrato NestJS manteniendo mocks intercambiables para pruebas.
 - [x] Descargar reportes PDF reales desde el endpoint autenticado del backend.
 - [x] Proteger secretos y tokens con `flutter_secure_storage`; bloquear HTTP claro en Android release.
-- [ ] Cubrir view models, widgets clave y CP-01 a CP-20 con pruebas automatizadas; el componente de alertas ya cuenta con prueba de widget.
+- [x] Cubrir view models, widgets clave y CP-01 a CP-20 con pruebas automatizadas agrupadas por responsabilidad funcional.
 - [x] Verificar por análisis estático y pruebas responsive los anchos 320, 390 y 1280 px, incluyendo texto al 130%.
 - [ ] Validar el escaneo con cámara real en un teléfono Android físico y en Windows; Android requiere aceptar la instalación de depuración en el dispositivo.
-- [ ] Ampliar la auditoría de accesibilidad automatizada.
+- [x] Auditar automáticamente contraste, etiquetas semánticas y objetivos táctiles en el acceso, además de los estados puntual/atraso del resultado.
 
 ## Definition of done
 
