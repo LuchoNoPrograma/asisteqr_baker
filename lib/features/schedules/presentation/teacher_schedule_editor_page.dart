@@ -71,16 +71,27 @@ class _TeacherScheduleEditorPageState
   Future<void> _addMobileBlock() async {
     final current = model.data;
     if (current == null) return;
-    final range = await showDialog<(int, int)>(
+    final draft = await showDialog<_ClassBlockDraft>(
       context: context,
-      builder: (context) =>
-          _AddRangeDialog(config: current.config, breaks: current.breaks),
+      builder: (context) => _ClassBlockDialog(
+        data: current,
+        weekday: mobileDay,
+        startMinutes: current.config.startMinutes,
+        endMinutes: current.config.startMinutes + 30,
+        initialCourseId: model.selectedCourseId,
+        initialSubjectId: model.selectedSubjectId,
+        initialClassroomId: model.selectedClassroomId,
+      ),
     );
-    if (range == null) return;
+    if (draft == null) return;
+    model
+      ..selectCourse(draft.courseId)
+      ..selectSubject(draft.subjectId)
+      ..selectClassroom(draft.classroomId);
     final added = model.addRange(
       weekday: mobileDay,
-      startMinutes: range.$1,
-      endMinutes: range.$2,
+      startMinutes: draft.startMinutes,
+      endMinutes: draft.endMinutes,
     );
     if (!added && mounted) {
       await showAppErrorDialog(
@@ -239,29 +250,6 @@ class _EditorToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = model.data!;
     final controls = <Widget>[
-      _EditorSelect(
-        width: desktop ? 210 : 160,
-        label: 'Curso',
-        value: model.selectedCourseId,
-        items: data.courses.map((item) => (item.id, item.name)).toList(),
-        onChanged: model.selectCourse,
-      ),
-      _EditorSelect(
-        width: desktop ? 190 : 150,
-        label: 'Materia',
-        value: model.selectedSubjectId,
-        items: data.subjects.map((item) => (item.id, item.name)).toList(),
-        onChanged: model.selectSubject,
-      ),
-      _EditorSelect(
-        width: desktop ? 180 : 145,
-        label: 'Aula',
-        value: model.selectedClassroomId,
-        items: data.classrooms
-            .map((item) => (item.id, '${item.code} · ${item.name}'))
-            .toList(),
-        onChanged: model.selectClassroom,
-      ),
       IconButton.outlined(
         tooltip: 'Deshacer',
         onPressed: model.canUndo ? model.undo : null,
@@ -272,20 +260,18 @@ class _EditorToolbar extends StatelessWidget {
         onPressed: model.canRedo ? model.redo : null,
         icon: const Icon(LucideIcons.redo2, size: 18),
       ),
-      if (desktop)
-        _InfoPill(
-          icon: LucideIcons.coffee,
-          text: data.breaks.isEmpty
-              ? 'Sin recreo'
-              : data.breaks
-                    .map((item) => '${item.startTime}–${item.endTime}')
-                    .join(', '),
-        ),
-      if (desktop)
-        _InfoPill(
-          icon: LucideIcons.timer,
-          text: '${data.config.toleranceMinutes} min',
-        ),
+      _InfoPill(
+        icon: LucideIcons.coffee,
+        text: data.breaks.isEmpty
+            ? 'Sin recreo'
+            : data.breaks
+                  .map((item) => '${item.startTime}–${item.endTime}')
+                  .join(', '),
+      ),
+      _InfoPill(
+        icon: LucideIcons.timer,
+        text: '${data.config.toleranceMinutes} min de tolerancia',
+      ),
     ];
     return Container(
       width: double.infinity,
@@ -319,45 +305,6 @@ class _EditorToolbar extends StatelessWidget {
   }
 }
 
-class _EditorSelect extends StatelessWidget {
-  const _EditorSelect({
-    required this.width,
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final double width;
-  final String label;
-  final String? value;
-  final List<(String, String)> items;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: DropdownButtonFormField<String>(
-      initialValue: items.any((item) => item.$1 == value) ? value : null,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label, isDense: true),
-      items: items
-          .map(
-            (item) => DropdownMenuItem(
-              value: item.$1,
-              child: Text(
-                item.$2,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
-          .toList(),
-      onChanged: items.isEmpty ? null : onChanged,
-    ),
-  );
-}
-
 class _InfoPill extends StatelessWidget {
   const _InfoPill({required this.icon, required this.text});
   final IconData icon;
@@ -388,6 +335,53 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
   int? dragDay;
   int? dragStart;
   int? dragEnd;
+
+  Future<void> _openClassDialog({
+    required int weekday,
+    required int startMinutes,
+    required int endMinutes,
+  }) async {
+    final data = widget.model.data;
+    if (data == null) return;
+    final draft = await showDialog<_ClassBlockDraft>(
+      context: context,
+      builder: (context) => _ClassBlockDialog(
+        data: data,
+        weekday: weekday,
+        startMinutes: startMinutes,
+        endMinutes: endMinutes,
+        initialCourseId: widget.model.selectedCourseId,
+        initialSubjectId: widget.model.selectedSubjectId,
+        initialClassroomId: widget.model.selectedClassroomId,
+      ),
+    );
+    if (draft == null || !mounted) return;
+    widget.model
+      ..selectCourse(draft.courseId)
+      ..selectSubject(draft.subjectId)
+      ..selectClassroom(draft.classroomId);
+    final added = widget.model.addRange(
+      weekday: weekday,
+      startMinutes: draft.startMinutes,
+      endMinutes: draft.endMinutes,
+    );
+    if (!added && mounted) {
+      await showAppErrorDialog(
+        context,
+        title: 'No se puede agregar la clase',
+        message: widget.model.takeError() ?? 'Revise el horario seleccionado.',
+      );
+    }
+  }
+
+  void _clearSelection() {
+    if (!mounted) return;
+    setState(() {
+      dragDay = null;
+      dragStart = null;
+      dragEnd = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,6 +475,31 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                                 .toList(),
                             selectedStart: dragDay == day ? dragStart : null,
                             selectedEnd: dragDay == day ? dragEnd : null,
+                            onTapCell: (row) {
+                              final startMinutes =
+                                  config.startMinutes + row * 30;
+                              final endMinutes = startMinutes + 30;
+                              final occupied =
+                                  data.breaks.any(
+                                    (item) => item.includesRange(
+                                      startMinutes,
+                                      endMinutes,
+                                    ),
+                                  ) ||
+                                  widget.model.blocks.any(
+                                    (item) =>
+                                        item.weekday == day &&
+                                        startMinutes < item.endMinutes &&
+                                        endMinutes > item.startMinutes,
+                                  );
+                              if (!occupied) {
+                                _openClassDialog(
+                                  weekday: day,
+                                  startMinutes: startMinutes,
+                                  endMinutes: endMinutes,
+                                );
+                              }
+                            },
                             onDragStart: (row) => setState(() {
                               dragDay = day;
                               dragStart = row;
@@ -489,20 +508,21 @@ class _ScheduleMatrixState extends State<_ScheduleMatrix> {
                             onDragUpdate: (row) =>
                                 setState(() => dragEnd = row),
                             onDragEnd: () {
+                              if (dragStart == null || dragEnd == null) return;
                               final startRow = math.min(dragStart!, dragEnd!);
                               final endRow = math.max(dragStart!, dragEnd!) + 1;
-                              widget.model.addRange(
+                              final startMinutes =
+                                  config.startMinutes + startRow * 30;
+                              final endMinutes =
+                                  config.startMinutes + endRow * 30;
+                              _clearSelection();
+                              _openClassDialog(
                                 weekday: day,
-                                startMinutes:
-                                    config.startMinutes + startRow * 30,
-                                endMinutes: config.startMinutes + endRow * 30,
+                                startMinutes: startMinutes,
+                                endMinutes: endMinutes,
                               );
-                              setState(() {
-                                dragDay = null;
-                                dragStart = null;
-                                dragEnd = null;
-                              });
                             },
+                            onDragCancel: _clearSelection,
                             onRemove: widget.model.removeBlock,
                           ),
                       ],
@@ -527,9 +547,11 @@ class _DayColumn extends StatelessWidget {
     required this.rows,
     required this.data,
     required this.blocks,
+    required this.onTapCell,
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
+    required this.onDragCancel,
     required this.onRemove,
     this.selectedStart,
     this.selectedEnd,
@@ -544,9 +566,11 @@ class _DayColumn extends StatelessWidget {
   final List<TeacherScheduleBlock> blocks;
   final int? selectedStart;
   final int? selectedEnd;
+  final ValueChanged<int> onTapCell;
   final ValueChanged<int> onDragStart;
   final ValueChanged<int> onDragUpdate;
   final VoidCallback onDragEnd;
+  final VoidCallback onDragCancel;
   final ValueChanged<String> onRemove;
 
   int _row(double y) => (y / rowHeight).floor().clamp(0, rows - 1);
@@ -562,9 +586,11 @@ class _DayColumn extends StatelessWidget {
         : math.max(selectedStart!, selectedEnd!);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTapUp: (details) => onTapCell(_row(details.localPosition.dy)),
       onPanStart: (details) => onDragStart(_row(details.localPosition.dy)),
       onPanUpdate: (details) => onDragUpdate(_row(details.localPosition.dy)),
       onPanEnd: (_) => onDragEnd(),
+      onPanCancel: onDragCancel,
       child: SizedBox(
         width: width,
         height: height,
@@ -653,65 +679,87 @@ class _BlockTile extends StatelessWidget {
   final ValueChanged<String> onRemove;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.blueSoft,
-    borderRadius: BorderRadius.circular(6),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onLongPress: () => onRemove(block.id),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(8, 5, 3, 4),
-        decoration: BoxDecoration(
-          border: const Border(
-            left: BorderSide(color: AppColors.navy, width: 4),
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    block.subjectName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    block.courseName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  Text(
-                    '${block.classroomName} · ${block.startTime}–${block.endTime}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.inkMuted,
-                    ),
-                  ),
-                ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final detailed = constraints.maxHeight >= 76;
+      return Material(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(6),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {},
+          onLongPress: () => onRemove(block.id),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(8, 4, 2, 4),
+            decoration: BoxDecoration(
+              border: const Border(
+                left: BorderSide(color: AppColors.navy, width: 4),
               ),
+              borderRadius: BorderRadius.circular(6),
             ),
-            IconButton(
-              tooltip: 'Quitar bloque',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-              onPressed: () => onRemove(block.id),
-              icon: const Icon(LucideIcons.x, size: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        block.subjectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        detailed
+                            ? block.courseName
+                            : '${block.startTime}–${block.endTime} · ${block.classroomName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          height: 1.1,
+                          color: AppColors.inkMuted,
+                        ),
+                      ),
+                      if (detailed) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${block.classroomName} · ${block.startTime}–${block.endTime}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            height: 1.1,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Quitar bloque',
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  onPressed: () => onRemove(block.id),
+                  icon: const Icon(LucideIcons.x, size: 14),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -950,6 +998,7 @@ class _GeneralConfigDialogState extends State<_GeneralConfigDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     title: const AppDialogHeader(title: 'Configuración general'),
     content: SizedBox(
       width: 560,
@@ -999,7 +1048,7 @@ class _GeneralConfigDialogState extends State<_GeneralConfigDialog> {
               value: tolerance,
               min: 0,
               max: 30,
-              divisions: 30,
+              divisions: 6,
               label: '${tolerance.round()} min',
               onChanged: (value) => setState(() => tolerance = value),
             ),
@@ -1133,53 +1182,183 @@ class _TimeSelect extends StatelessWidget {
   );
 }
 
-class _AddRangeDialog extends StatefulWidget {
-  const _AddRangeDialog({required this.config, required this.breaks});
-  final GeneralScheduleConfig config;
-  final List<ScheduleBreak> breaks;
+class _ClassBlockDraft {
+  const _ClassBlockDraft({
+    required this.startMinutes,
+    required this.endMinutes,
+    required this.courseId,
+    required this.subjectId,
+    required this.classroomId,
+  });
 
-  @override
-  State<_AddRangeDialog> createState() => _AddRangeDialogState();
+  final int startMinutes;
+  final int endMinutes;
+  final String courseId;
+  final String subjectId;
+  final String classroomId;
 }
 
-class _AddRangeDialogState extends State<_AddRangeDialog> {
-  late String start = widget.config.startTime;
-  late String end = scheduleMinutesToTime(widget.config.startMinutes + 30);
+class _ClassBlockDialog extends StatefulWidget {
+  const _ClassBlockDialog({
+    required this.data,
+    required this.weekday,
+    required this.startMinutes,
+    required this.endMinutes,
+    this.initialCourseId,
+    this.initialSubjectId,
+    this.initialClassroomId,
+  });
+
+  final TeacherScheduleEditorData data;
+  final int weekday;
+  final int startMinutes;
+  final int endMinutes;
+  final String? initialCourseId;
+  final String? initialSubjectId;
+  final String? initialClassroomId;
+
+  @override
+  State<_ClassBlockDialog> createState() => _ClassBlockDialogState();
+}
+
+class _ClassBlockDialogState extends State<_ClassBlockDialog> {
+  late String start;
+  late String end;
+  late String? courseId;
+  late String? subjectId;
+  late String? classroomId;
+
+  @override
+  void initState() {
+    super.initState();
+    final config = widget.data.config;
+    start = scheduleMinutesToTime(widget.startMinutes);
+    end = scheduleMinutesToTime(math.min(widget.endMinutes, config.endMinutes));
+    courseId = _validId(
+      widget.initialCourseId,
+      widget.data.courses.map((item) => item.id),
+    );
+    subjectId = _validId(
+      widget.initialSubjectId,
+      widget.data.subjects.map((item) => item.id),
+    );
+    classroomId = _validId(
+      widget.initialClassroomId,
+      widget.data.classrooms.map((item) => item.id),
+    );
+    courseId ??= widget.data.courses.firstOrNull?.id;
+    subjectId ??= widget.data.subjects.firstOrNull?.id;
+    classroomId ??= widget.data.classrooms.firstOrNull?.id;
+  }
+
+  String? _validId(String? value, Iterable<String> ids) =>
+      value != null && ids.contains(value) ? value : null;
 
   List<String> get times => [
     for (
-      var value = widget.config.startMinutes;
-      value <= widget.config.endMinutes;
+      var value = widget.data.config.startMinutes;
+      value <= widget.data.config.endMinutes;
       value += 30
     )
       scheduleMinutesToTime(value),
   ];
 
+  bool get canSubmit =>
+      courseId != null &&
+      subjectId != null &&
+      classroomId != null &&
+      scheduleTimeToMinutes(end) > scheduleTimeToMinutes(start);
+
+  void _submit() {
+    if (!canSubmit) return;
+    Navigator.pop(
+      context,
+      _ClassBlockDraft(
+        startMinutes: scheduleTimeToMinutes(start),
+        endMinutes: scheduleTimeToMinutes(end),
+        courseId: courseId!,
+        subjectId: subjectId!,
+        classroomId: classroomId!,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const AppDialogHeader(title: 'Agregar clase'),
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    title: const AppDialogHeader(title: 'Nueva clase'),
     content: SizedBox(
-      width: 360,
-      child: Row(
-        children: [
-          Expanded(
-            child: _TimeSelect(
-              label: 'Desde',
-              value: start,
-              times: times,
-              onChanged: (value) => setState(() => start = value),
+      width: 520,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  LucideIcons.calendarDays,
+                  size: 17,
+                  color: AppColors.navy,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  weekdayLabels[widget.weekday]!,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _TimeSelect(
-              label: 'Hasta',
-              value: end,
-              times: times,
-              onChanged: (value) => setState(() => end = value),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _TimeSelect(
+                    label: 'Desde',
+                    value: start,
+                    times: times,
+                    onChanged: (value) => setState(() => start = value),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TimeSelect(
+                    label: 'Hasta',
+                    value: end,
+                    times: times,
+                    onChanged: (value) => setState(() => end = value),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            _CatalogSelect(
+              label: 'Curso',
+              value: courseId,
+              items: widget.data.courses
+                  .map((item) => (item.id, item.name))
+                  .toList(),
+              onChanged: (value) => setState(() => courseId = value),
+            ),
+            const SizedBox(height: 14),
+            _CatalogSelect(
+              label: 'Materia',
+              value: subjectId,
+              items: widget.data.subjects
+                  .map((item) => (item.id, item.name))
+                  .toList(),
+              onChanged: (value) => setState(() => subjectId = value),
+            ),
+            const SizedBox(height: 14),
+            _CatalogSelect(
+              label: 'Aula',
+              value: classroomId,
+              items: widget.data.classrooms
+                  .map((item) => (item.id, '${item.code} · ${item.name}'))
+                  .toList(),
+              onChanged: (value) => setState(() => classroomId = value),
+            ),
+          ],
+        ),
       ),
     ),
     actions: [
@@ -1187,16 +1366,42 @@ class _AddRangeDialogState extends State<_AddRangeDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancelar'),
       ),
-      FilledButton(
-        onPressed: scheduleTimeToMinutes(end) > scheduleTimeToMinutes(start)
-            ? () => Navigator.pop(context, (
-                scheduleTimeToMinutes(start),
-                scheduleTimeToMinutes(end),
-              ))
-            : null,
-        child: const Text('Agregar'),
+      FilledButton.icon(
+        onPressed: canSubmit ? _submit : null,
+        icon: const Icon(LucideIcons.plus, size: 17),
+        label: const Text('Agregar'),
       ),
     ],
+  );
+}
+
+class _CatalogSelect extends StatelessWidget {
+  const _CatalogSelect({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String? value;
+  final List<(String, String)> items;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+    initialValue: items.any((item) => item.$1 == value) ? value : null,
+    isExpanded: true,
+    decoration: InputDecoration(labelText: label, isDense: true),
+    items: items
+        .map(
+          (item) => DropdownMenuItem(
+            value: item.$1,
+            child: Text(item.$2, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        )
+        .toList(),
+    onChanged: items.isEmpty ? null : onChanged,
   );
 }
 
