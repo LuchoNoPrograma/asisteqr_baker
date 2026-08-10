@@ -615,6 +615,7 @@ class _StudentDialogState extends State<_StudentDialog> {
                         birthDate == null
                             ? 'Seleccionar fecha'
                             : DateFormat('dd/MM/yyyy').format(birthDate!),
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
                   ),
