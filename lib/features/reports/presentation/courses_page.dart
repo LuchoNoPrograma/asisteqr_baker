@@ -5,6 +5,7 @@ import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
+import 'package:asisteqr_baker/core/widgets/app_table_actions_menu.dart';
 import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,9 +48,9 @@ class CoursesPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const AppDialogHeader(title: 'Inactivar curso'),
+        title: const AppDialogHeader(title: 'Desactivar curso'),
         content: Text(
-          'Se ocultará ${course.name} y se inactivarán sus horarios. '
+          'Se ocultará ${course.name} y se desactivarán sus horarios. '
           'Los registros históricos se conservarán.',
         ),
         actions: [
@@ -60,8 +61,8 @@ class CoursesPage extends ConsumerWidget {
           FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.red),
-            icon: const Icon(LucideIcons.archive, size: 17),
-            label: const Text('Inactivar'),
+            icon: const Icon(LucideIcons.circleOff, size: 17),
+            label: const Text('Desactivar'),
           ),
         ],
       ),
@@ -72,11 +73,11 @@ class CoursesPage extends ConsumerWidget {
           .deactivateCourse(course);
       if (!context.mounted) return;
       if (saved) {
-        showAppSuccess(context, 'Curso inactivado correctamente.');
+        showAppSuccess(context, 'Curso desactivado correctamente.');
       } else {
         await showAppErrorDialog(
           context,
-          title: 'No se pudo inactivar el curso',
+          title: 'No se pudo desactivar el curso',
           message:
               ref.read(coursesViewModelProvider).takeError() ??
               'Intenta nuevamente.',
@@ -366,56 +367,26 @@ class _CoursesTable extends StatelessWidget {
           if (canManage)
             AppDataColumn(
               label: 'Acciones',
-              cellBuilder: (context, course) => PopupMenuButton<_CourseAction>(
+              cellBuilder: (context, course) => AppTableActionsMenu(
                 tooltip: 'Acciones del curso',
-                onSelected: (action) {
-                  switch (action.type) {
-                    case _CourseActionType.edit:
-                      onEdit(course);
-                      break;
-                    case _CourseActionType.deactivate:
-                      onDeactivate(course);
-                      break;
-                    case _CourseActionType.manageEntrySchedules:
-                      onManageEntrySchedules(course);
-                      break;
-                    case _CourseActionType.planClasses:
-                      onPlanClasses(course);
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: _CourseAction(_CourseActionType.edit),
-                    child: _CourseMenuItem(
-                      icon: LucideIcons.pencil,
-                      label: 'Editar curso',
-                    ),
+                actions: [
+                  AppTableAction(
+                    label: 'Editar',
+                    icon: LucideIcons.pencil,
+                    onSelected: () => onEdit(course),
                   ),
-                  const PopupMenuItem(
-                    value: _CourseAction(_CourseActionType.planClasses),
-                    child: _CourseMenuItem(
-                      icon: LucideIcons.settings2,
-                      label: 'Configurar clases',
-                    ),
+                  AppTableAction(
+                    label: 'Configurar clases',
+                    icon: LucideIcons.settings2,
+                    onSelected: () => onPlanClasses(course),
                   ),
-                  const PopupMenuItem(
-                    value: _CourseAction(
-                      _CourseActionType.manageEntrySchedules,
-                    ),
-                    child: _CourseMenuItem(
-                      icon: LucideIcons.clock3,
-                      label: 'Horarios de ingreso',
-                    ),
+                  AppTableAction(
+                    label: 'Horarios de ingreso',
+                    icon: LucideIcons.clock3,
+                    onSelected: () => onManageEntrySchedules(course),
                   ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: _CourseAction(_CourseActionType.deactivate),
-                    child: _CourseMenuItem(
-                      icon: LucideIcons.archive,
-                      label: 'Inactivar curso',
-                      destructive: true,
-                    ),
+                  AppTableAction.deactivate(
+                    onSelected: () => onDeactivate(course),
                   ),
                 ],
               ),
@@ -424,41 +395,6 @@ class _CoursesTable extends StatelessWidget {
       ),
     );
   }
-}
-
-enum _CourseActionType { edit, planClasses, manageEntrySchedules, deactivate }
-
-class _CourseAction {
-  const _CourseAction(this.type);
-
-  final _CourseActionType type;
-}
-
-class _CourseMenuItem extends StatelessWidget {
-  const _CourseMenuItem({
-    required this.icon,
-    required this.label,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, size: 17, color: destructive ? AppColors.red : null),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Text(
-          label,
-          maxLines: 2,
-          style: TextStyle(color: destructive ? AppColors.red : null),
-        ),
-      ),
-    ],
-  );
 }
 
 class _CoursePanel extends StatelessWidget {
@@ -502,39 +438,20 @@ class _CoursePanel extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       trailing: canManage
-          ? PopupMenuButton<String>(
+          ? AppTableActionsMenu(
               tooltip: 'Acciones del curso',
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'classes') onPlanClasses();
-                if (value == 'deactivate') onDeactivate();
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: ListTile(
-                    leading: Icon(LucideIcons.pencil, size: 18),
-                    title: Text('Editar curso'),
-                  ),
+              actions: [
+                AppTableAction(
+                  label: 'Editar',
+                  icon: LucideIcons.pencil,
+                  onSelected: onEdit,
                 ),
-                PopupMenuItem(
-                  value: 'classes',
-                  child: ListTile(
-                    leading: Icon(LucideIcons.settings2, size: 18),
-                    title: Text('Configurar clases'),
-                  ),
+                AppTableAction(
+                  label: 'Configurar clases',
+                  icon: LucideIcons.settings2,
+                  onSelected: onPlanClasses,
                 ),
-                PopupMenuItem(
-                  value: 'deactivate',
-                  child: ListTile(
-                    leading: Icon(
-                      LucideIcons.archive,
-                      size: 18,
-                      color: AppColors.red,
-                    ),
-                    title: Text('Inactivar'),
-                  ),
-                ),
+                AppTableAction.deactivate(onSelected: onDeactivate),
               ],
             )
           : null,
@@ -700,10 +617,10 @@ class _EntrySchedulesDialogState extends State<_EntrySchedulesDialog> {
                           icon: const Icon(LucideIcons.pencil, size: 18),
                         ),
                         IconButton(
-                          tooltip: 'Inactivar horario',
+                          tooltip: 'Desactivar horario',
                           onPressed: busy ? null : () => _deactivate(schedule),
                           icon: const Icon(
-                            LucideIcons.archive,
+                            LucideIcons.circleOff,
                             size: 18,
                             color: AppColors.red,
                           ),
@@ -757,9 +674,9 @@ class _EntrySchedulesDialogState extends State<_EntrySchedulesDialog> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const AppDialogHeader(title: 'Inactivar horario'),
+        title: const AppDialogHeader(title: 'Desactivar horario'),
         content: Text(
-          'Se retirará el ingreso de ${schedule.shiftLabel.toLowerCase()} a las ${schedule.deadline}.',
+          'Se desactivará el ingreso de ${schedule.shiftLabel.toLowerCase()} a las ${schedule.deadline}.',
         ),
         actions: [
           TextButton(
@@ -769,8 +686,8 @@ class _EntrySchedulesDialogState extends State<_EntrySchedulesDialog> {
           FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.red),
-            icon: const Icon(LucideIcons.archive, size: 17),
-            label: const Text('Inactivar'),
+            icon: const Icon(LucideIcons.circleOff, size: 17),
+            label: const Text('Desactivar'),
           ),
         ],
       ),
@@ -781,7 +698,7 @@ class _EntrySchedulesDialogState extends State<_EntrySchedulesDialog> {
     if (!mounted) return;
     setState(() => busy = false);
     if (updated == null) {
-      await _showOperationError('No se pudo inactivar el horario');
+      await _showOperationError('No se pudo desactivar el horario');
       return;
     }
     setState(() {

@@ -89,7 +89,7 @@ class ApiPeopleRepository implements PeopleRepository {
       await _client.dio.delete<void>('/estudiantes/$id');
     } on DioException catch (error) {
       throw PeopleException(
-        _message(error, 'No se pudo retirar el estudiante.'),
+        _message(error, 'No se pudo desactivar el estudiante.'),
       );
     }
   }
@@ -152,7 +152,7 @@ class ApiPeopleRepository implements PeopleRepository {
       await _client.dio.delete<void>('/docentes/$id');
     } on DioException catch (error) {
       throw PeopleException(
-        _message(error, 'No se pudo inactivar el docente.'),
+        _message(error, 'No se pudo desactivar el docente.'),
       );
     }
   }

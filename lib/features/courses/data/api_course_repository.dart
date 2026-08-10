@@ -57,7 +57,7 @@ class ApiCourseRepository implements CourseRepository {
     try {
       await _client.dio.delete<void>('/cursos/$id');
     } on DioException catch (error) {
-      throw CourseException(_message(error, 'No se pudo inactivar el curso.'));
+      throw CourseException(_message(error, 'No se pudo desactivar el curso.'));
     }
   }
 
@@ -99,7 +99,9 @@ class ApiCourseRepository implements CourseRepository {
     try {
       await _client.dio.delete<void>('/cursos/$courseId/horarios/$scheduleId');
     } on DioException catch (error) {
-      throw CourseException(_message(error, 'No se pudo retirar el horario.'));
+      throw CourseException(
+        _message(error, 'No se pudo desactivar el horario.'),
+      );
     }
   }
 

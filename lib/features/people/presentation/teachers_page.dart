@@ -4,6 +4,7 @@ import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
+import 'package:asisteqr_baker/core/widgets/app_table_actions_menu.dart';
 import 'package:asisteqr_baker/core/validation/school_form_validators.dart';
 import 'package:asisteqr_baker/features/people/application/person_image_picker.dart';
 import 'package:asisteqr_baker/features/people/domain/people_models.dart';
@@ -50,8 +51,8 @@ class TeachersPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const AppDialogHeader(title: 'Inactivar docente'),
-        content: Text('Se inactivará a ${teacher.fullName}.'),
+        title: const AppDialogHeader(title: 'Desactivar docente'),
+        content: Text('Se desactivará a ${teacher.fullName}.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -60,8 +61,8 @@ class TeachersPage extends ConsumerWidget {
           FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.red),
-            icon: const Icon(LucideIcons.userRoundX, size: 17),
-            label: const Text('Inactivar'),
+            icon: const Icon(LucideIcons.circleOff, size: 17),
+            label: const Text('Desactivar'),
           ),
         ],
       ),
@@ -71,11 +72,11 @@ class TeachersPage extends ConsumerWidget {
       final saved = await model.deactivate(teacher);
       if (!context.mounted) return;
       if (saved) {
-        showAppSuccess(context, 'Docente inactivado correctamente.');
+        showAppSuccess(context, 'Docente desactivado correctamente.');
       } else {
         await showAppErrorDialog(
           context,
-          title: 'No se pudo inactivar al docente',
+          title: 'No se pudo desactivar al docente',
           message: model.takeError() ?? 'Intenta nuevamente.',
         );
       }
@@ -414,8 +415,6 @@ class _TeacherTile extends StatelessWidget {
   );
 }
 
-enum _TeacherAction { edit, schedule, deactivate }
-
 class _TeacherActionsMenu extends StatelessWidget {
   const _TeacherActionsMenu({
     required this.active,
@@ -430,75 +429,21 @@ class _TeacherActionsMenu extends StatelessWidget {
   final VoidCallback onDeactivate;
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<_TeacherAction>(
+  Widget build(BuildContext context) => AppTableActionsMenu(
     tooltip: 'Acciones del docente',
-    onSelected: (action) {
-      switch (action) {
-        case _TeacherAction.edit:
-          onEdit();
-          break;
-        case _TeacherAction.schedule:
-          onSchedule();
-          break;
-        case _TeacherAction.deactivate:
-          onDeactivate();
-          break;
-      }
-    },
-    itemBuilder: (context) => [
-      const PopupMenuItem(
-        value: _TeacherAction.edit,
-        child: _TeacherMenuItem(
-          icon: LucideIcons.pencil,
-          label: 'Editar docente',
-        ),
+    actions: [
+      AppTableAction(
+        label: 'Editar',
+        icon: LucideIcons.pencil,
+        onSelected: onEdit,
       ),
       if (active)
-        const PopupMenuItem(
-          value: _TeacherAction.schedule,
-          child: _TeacherMenuItem(
-            icon: LucideIcons.settings2,
-            label: 'Configurar horario',
-          ),
+        AppTableAction(
+          label: 'Configurar horario',
+          icon: LucideIcons.settings2,
+          onSelected: onSchedule,
         ),
-      if (active) const PopupMenuDivider(),
-      if (active)
-        const PopupMenuItem(
-          value: _TeacherAction.deactivate,
-          child: _TeacherMenuItem(
-            icon: LucideIcons.userRoundX,
-            label: 'Inactivar docente',
-            destructive: true,
-          ),
-        ),
-    ],
-  );
-}
-
-class _TeacherMenuItem extends StatelessWidget {
-  const _TeacherMenuItem({
-    required this.icon,
-    required this.label,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Icon(icon, size: 18, color: destructive ? AppColors.red : null),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: destructive ? const TextStyle(color: AppColors.red) : null,
-        ),
-      ),
+      if (active) AppTableAction.deactivate(onSelected: onDeactivate),
     ],
   );
 }

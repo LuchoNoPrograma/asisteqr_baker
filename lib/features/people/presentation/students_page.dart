@@ -4,6 +4,7 @@ import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
+import 'package:asisteqr_baker/core/widgets/app_table_actions_menu.dart';
 import 'package:asisteqr_baker/core/validation/school_form_validators.dart';
 import 'package:asisteqr_baker/features/people/application/person_image_picker.dart';
 import 'package:asisteqr_baker/features/people/domain/people_models.dart';
@@ -43,7 +44,7 @@ class StudentsPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _retire(
+  Future<void> _deactivate(
     BuildContext context,
     WidgetRef ref,
     StudentEntry student,
@@ -51,9 +52,9 @@ class StudentsPage extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const AppDialogHeader(title: 'Retirar estudiante'),
+        title: const AppDialogHeader(title: 'Desactivar estudiante'),
         content: Text(
-          'Se inactivará a ${student.fullName} y su credencial QR.',
+          'Se desactivará a ${student.fullName} y su credencial QR.',
         ),
         actions: [
           TextButton(
@@ -63,8 +64,8 @@ class StudentsPage extends ConsumerWidget {
           FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.red),
-            icon: const Icon(LucideIcons.userMinus, size: 17),
-            label: const Text('Retirar'),
+            icon: const Icon(LucideIcons.circleOff, size: 17),
+            label: const Text('Desactivar'),
           ),
         ],
       ),
@@ -74,11 +75,11 @@ class StudentsPage extends ConsumerWidget {
       final saved = await model.retire(student);
       if (!context.mounted) return;
       if (saved) {
-        showAppSuccess(context, 'Estudiante retirado correctamente.');
+        showAppSuccess(context, 'Estudiante desactivado correctamente.');
       } else {
         await showAppErrorDialog(
           context,
-          title: 'No se pudo retirar al estudiante',
+          title: 'No se pudo desactivar al estudiante',
           message: model.takeError() ?? 'Intenta nuevamente.',
         );
       }
@@ -203,7 +204,7 @@ class StudentsPage extends ConsumerWidget {
                         onHistory: (item) =>
                             context.push('/historial', extra: item.id),
                         onEdit: (item) => _edit(context, ref, item),
-                        onRetire: (item) => _retire(context, ref, item),
+                        onDeactivate: (item) => _deactivate(context, ref, item),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
@@ -216,7 +217,8 @@ class StudentsPage extends ConsumerWidget {
                             onHistory: () =>
                                 context.push('/historial', extra: student.id),
                             onEdit: () => _edit(context, ref, student),
-                            onRetire: () => _retire(context, ref, student),
+                            onDeactivate: () =>
+                                _deactivate(context, ref, student),
                           );
                         },
                       ),
@@ -235,13 +237,13 @@ class _StudentsTable extends StatelessWidget {
     required this.canManage,
     required this.onHistory,
     required this.onEdit,
-    required this.onRetire,
+    required this.onDeactivate,
   });
   final List<StudentEntry> students;
   final bool canManage;
   final ValueChanged<StudentEntry> onHistory;
   final ValueChanged<StudentEntry> onEdit;
-  final ValueChanged<StudentEntry> onRetire;
+  final ValueChanged<StudentEntry> onDeactivate;
 
   @override
   Widget build(BuildContext context) {
@@ -355,28 +357,24 @@ class _StudentsTable extends StatelessWidget {
           ),
           AppDataColumn(
             label: 'Acciones',
-            cellBuilder: (context, student) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: 'Ver historial',
-                  onPressed: () => onHistory(student),
-                  icon: const Icon(LucideIcons.history, size: 17),
+            cellBuilder: (context, student) => AppTableActionsMenu(
+              tooltip: 'Acciones del estudiante',
+              actions: [
+                AppTableAction(
+                  label: 'Ver historial',
+                  icon: LucideIcons.history,
+                  onSelected: () => onHistory(student),
                 ),
-                if (canManage) ...[
-                  IconButton(
-                    tooltip: 'Editar',
-                    onPressed: () => onEdit(student),
-                    icon: const Icon(LucideIcons.pencil, size: 17),
+                if (canManage)
+                  AppTableAction(
+                    label: 'Editar',
+                    icon: LucideIcons.pencil,
+                    onSelected: () => onEdit(student),
                   ),
-                  IconButton(
-                    tooltip: 'Retirar',
-                    onPressed: student.status == 'ACTIVO'
-                        ? () => onRetire(student)
-                        : null,
-                    icon: const Icon(LucideIcons.userMinus, size: 17),
+                if (canManage && student.status == 'ACTIVO')
+                  AppTableAction.deactivate(
+                    onSelected: () => onDeactivate(student),
                   ),
-                ],
               ],
             ),
           ),
@@ -392,13 +390,13 @@ class _StudentTile extends StatelessWidget {
     required this.canManage,
     required this.onHistory,
     required this.onEdit,
-    required this.onRetire,
+    required this.onDeactivate,
   });
   final StudentEntry student;
   final bool canManage;
   final VoidCallback onHistory;
   final VoidCallback onEdit;
-  final VoidCallback onRetire;
+  final VoidCallback onDeactivate;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -443,18 +441,22 @@ class _StudentTile extends StatelessWidget {
           ),
         ),
         _StatusLabel(active: student.status == 'ACTIVO'),
-        PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'history') return onHistory();
-            if (value == 'edit') return onEdit();
-            onRetire();
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'history', child: Text('Ver historial')),
+        AppTableActionsMenu(
+          tooltip: 'Acciones del estudiante',
+          actions: [
+            AppTableAction(
+              label: 'Ver historial',
+              icon: LucideIcons.history,
+              onSelected: onHistory,
+            ),
             if (canManage)
-              const PopupMenuItem(value: 'edit', child: Text('Editar')),
+              AppTableAction(
+                label: 'Editar',
+                icon: LucideIcons.pencil,
+                onSelected: onEdit,
+              ),
             if (canManage && student.status == 'ACTIVO')
-              const PopupMenuItem(value: 'retire', child: Text('Retirar')),
+              AppTableAction.deactivate(onSelected: onDeactivate),
           ],
         ),
       ],
