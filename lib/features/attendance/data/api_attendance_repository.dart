@@ -17,17 +17,28 @@ class ApiAttendanceRepository implements AttendanceRepository {
       );
       return _scanFromJson(response.data!);
     } on DioException catch (error) {
-      final status = error.response?.statusCode;
-      final body = error.response?.data;
-      final message = body is Map
-          ? (body['message'] ?? body['mensaje'])?.toString()
-          : null;
-      throw AttendanceException(switch (status) {
-        401 || 403 => AttendanceFailureKind.unauthorized,
-        404 => AttendanceFailureKind.invalidQr,
-        400 => AttendanceFailureKind.inactiveStudent,
-        _ => AttendanceFailureKind.network,
-      }, message ?? 'No se pudo validar la credencial. Revisa la conexión.');
+      throw _attendanceException(
+        error,
+        notFoundKind: AttendanceFailureKind.invalidQr,
+        fallback: 'No se pudo validar la credencial. Revisa la conexión.',
+      );
+    }
+  }
+
+  @override
+  Future<ScanResult> registerManual(int studentCode) async {
+    try {
+      final response = await _client.dio.post<Map<String, dynamic>>(
+        '/asistencias/manual',
+        data: {'codigoEstudiante': studentCode},
+      );
+      return _scanFromJson(response.data!);
+    } on DioException catch (error) {
+      throw _attendanceException(
+        error,
+        notFoundKind: AttendanceFailureKind.studentNotFound,
+        fallback: 'No se pudo registrar la asistencia. Revisa la conexión.',
+      );
     }
   }
 
@@ -50,6 +61,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
           .where((item) => item.status == AttendanceStatus.absent)
           .length,
       recent: present.take(5).toList(),
+      courses: _courseSummaries(records),
     );
   }
 
@@ -94,6 +106,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
           fullName: studentJson['nombreCompleto'].toString(),
           course: record['curso'].toString(),
           photoSource: studentJson['fotografiaUrl']?.toString(),
+          gender: _studentGender(studentJson),
         ),
         timestamp: DateTime.parse(record['fechaHora'].toString()).toLocal(),
         status: record['estado'] == 'ATRASO'
@@ -111,6 +124,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
       fullName: studentJson['nombreCompleto'].toString(),
       course: studentJson['curso'].toString(),
       photoSource: studentJson['fotografiaUrl']?.toString(),
+      gender: _studentGender(studentJson),
     );
     final record = AttendanceRecord(
       id: json['id'].toString(),
@@ -135,6 +149,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
         fullName: studentJson['nombreCompleto'].toString(),
         course: courseJson['nombre'].toString(),
         photoSource: studentJson['fotografiaUrl']?.toString(),
+        gender: _studentGender(studentJson),
       ),
       timestamp: json['fechaHora'] == null
           ? DateTime.now()
@@ -145,5 +160,61 @@ class ApiAttendanceRepository implements AttendanceRepository {
         _ => AttendanceStatus.punctual,
       },
     );
+  }
+
+  List<CourseAttendanceSummary> _courseSummaries(
+    List<AttendanceRecord> records,
+  ) {
+    final byCourse = <String, List<AttendanceRecord>>{};
+    for (final record in records) {
+      byCourse.putIfAbsent(record.student.course, () => []).add(record);
+    }
+    final summaries = byCourse.entries.map((entry) {
+      final courseRecords = entry.value;
+      final male = courseRecords
+          .where((item) => item.student.gender == StudentGender.male)
+          .length;
+      final female = courseRecords
+          .where((item) => item.student.gender == StudentGender.female)
+          .length;
+      return CourseAttendanceSummary(
+        course: entry.key,
+        expected: courseRecords.length,
+        present: courseRecords
+            .where((item) => item.status != AttendanceStatus.absent)
+            .length,
+        male: male,
+        female: female,
+        genderNotRegistered: courseRecords.length - male - female,
+      );
+    }).toList()..sort((left, right) => left.course.compareTo(right.course));
+    return summaries;
+  }
+
+  StudentGender? _studentGender(Map<String, dynamic> json) {
+    final value = (json['genero'] ?? json['sexo'])?.toString().toUpperCase();
+    return switch (value) {
+      'M' || 'MASCULINO' || 'HOMBRE' => StudentGender.male,
+      'F' || 'FEMENINO' || 'MUJER' => StudentGender.female,
+      _ => null,
+    };
+  }
+
+  AttendanceException _attendanceException(
+    DioException error, {
+    required AttendanceFailureKind notFoundKind,
+    required String fallback,
+  }) {
+    final status = error.response?.statusCode;
+    final body = error.response?.data;
+    final message = body is Map
+        ? (body['message'] ?? body['mensaje'])?.toString()
+        : null;
+    return AttendanceException(switch (status) {
+      401 || 403 => AttendanceFailureKind.unauthorized,
+      404 => notFoundKind,
+      400 => AttendanceFailureKind.inactiveStudent,
+      _ => AttendanceFailureKind.network,
+    }, message ?? fallback);
   }
 }

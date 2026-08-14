@@ -262,7 +262,7 @@ class _Filters extends StatelessWidget {
                   (item) => DropdownMenuItem(
                     value: item,
                     child: Text(
-                      item.label,
+                      item.label.toUpperCase(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -375,7 +375,7 @@ class _AttendanceTable extends StatelessWidget {
           options: [
             for (final status in AttendanceStatus.values)
               AppDataFilterOption(
-                label: status.label,
+                label: status.label.toUpperCase(),
                 matches: (record) => record.status == status,
               ),
           ],
@@ -383,24 +383,31 @@ class _AttendanceTable extends StatelessWidget {
       ],
       columns: [
         AppDataColumn(
-          label: 'Foto',
-          cellBuilder: (context, record) => AppPersonAvatar(
-            source: record.student.photoSource,
-            fallback: record.student.fullName.characters.first,
-            size: 32,
-          ),
-        ),
-        AppDataColumn(
           label: 'Código',
+          columnWidth: const FixedColumnWidth(112),
           compare: (first, second) =>
               first.student.code.compareTo(second.student.code),
           cellBuilder: (context, record) => Text(record.student.code),
         ),
         AppDataColumn(
           label: 'Estudiante',
+          columnWidth: const IntrinsicColumnWidth(flex: 1),
           compare: (first, second) =>
               first.student.fullName.compareTo(second.student.fullName),
-          cellBuilder: (context, record) => Text(record.student.fullName),
+          cellBuilder: (context, record) => Row(
+            children: [
+              AppPersonAvatar(
+                source: record.student.photoSource,
+                fallback: record.student.fullName.characters.first,
+                size: 32,
+              ),
+              const SizedBox(width: 9),
+              Text(
+                record.student.fullName,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
         AppDataColumn(
           label: 'Curso',

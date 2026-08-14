@@ -11,13 +11,19 @@ class ScannerViewModel extends ChangeNotifier {
   ScanResult? result;
   AttendanceException? failure;
 
-  Future<ScanResult?> submit(String token) async {
+  Future<ScanResult?> submitQr(String token) =>
+      _submit(() => _repository.registerQr(token));
+
+  Future<ScanResult?> submitManual(int studentCode) =>
+      _submit(() => _repository.registerManual(studentCode));
+
+  Future<ScanResult?> _submit(Future<ScanResult> Function() command) async {
     if (phase == ScanPhase.validating) return null;
     phase = ScanPhase.validating;
     failure = null;
     notifyListeners();
     try {
-      result = await _repository.registerQr(token);
+      result = await command();
       phase = ScanPhase.success;
       notifyListeners();
       return result;

@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 enum AttendanceStatus { punctual, late, absent }
 
+enum StudentGender { male, female }
+
 extension AttendanceStatusLabel on AttendanceStatus {
   String get label => switch (this) {
     AttendanceStatus.punctual => 'Puntual',
@@ -17,6 +19,7 @@ class Student extends Equatable {
     required this.fullName,
     required this.course,
     this.photoSource,
+    this.gender,
   });
 
   final String id;
@@ -24,9 +27,40 @@ class Student extends Equatable {
   final String fullName;
   final String course;
   final String? photoSource;
+  final StudentGender? gender;
 
   @override
-  List<Object?> get props => [id, code, fullName, course, photoSource];
+  List<Object?> get props => [id, code, fullName, course, photoSource, gender];
+}
+
+class CourseAttendanceSummary extends Equatable {
+  const CourseAttendanceSummary({
+    required this.course,
+    required this.expected,
+    required this.present,
+    required this.male,
+    required this.female,
+    required this.genderNotRegistered,
+  });
+
+  final String course;
+  final int expected;
+  final int present;
+  final int male;
+  final int female;
+  final int genderNotRegistered;
+
+  double get attendanceRate => expected == 0 ? 0 : present / expected;
+
+  @override
+  List<Object?> get props => [
+    course,
+    expected,
+    present,
+    male,
+    female,
+    genderNotRegistered,
+  ];
 }
 
 class AttendanceRecord extends Equatable {
@@ -69,6 +103,7 @@ class DashboardSummary extends Equatable {
     required this.late,
     required this.absent,
     required this.recent,
+    this.courses = const [],
   });
 
   final int expected;
@@ -77,6 +112,7 @@ class DashboardSummary extends Equatable {
   final int late;
   final int absent;
   final List<AttendanceRecord> recent;
+  final List<CourseAttendanceSummary> courses;
 
   double get attendanceRate => expected == 0 ? 0 : present / expected;
 
@@ -88,6 +124,7 @@ class DashboardSummary extends Equatable {
     late,
     absent,
     recent,
+    courses,
   ];
 }
 
@@ -95,6 +132,7 @@ enum AttendanceFailureKind {
   invalidQr,
   unreadableQr,
   inactiveStudent,
+  studentNotFound,
   network,
   unauthorized,
   unknown,

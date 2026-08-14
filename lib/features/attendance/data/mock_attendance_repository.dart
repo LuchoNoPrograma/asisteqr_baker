@@ -8,6 +8,7 @@ class MockAttendanceRepository implements AttendanceRepository {
     fullName: 'Valeria Mendoza Rojas',
     course: '4.º Secundaria B',
     photoSource: 'assets/images/valeria-mendoza.png',
+    gender: StudentGender.female,
   );
 
   Student _student(String id, String code, String name, String course) =>
@@ -74,6 +75,40 @@ class MockAttendanceRepository implements AttendanceRepository {
       late: 25,
       absent: 32,
       recent: records.take(3).toList(),
+      courses: const [
+        CourseAttendanceSummary(
+          course: '3.º Secundaria B',
+          expected: 82,
+          present: 70,
+          male: 41,
+          female: 41,
+          genderNotRegistered: 0,
+        ),
+        CourseAttendanceSummary(
+          course: '4.º Secundaria A',
+          expected: 86,
+          present: 81,
+          male: 44,
+          female: 42,
+          genderNotRegistered: 0,
+        ),
+        CourseAttendanceSummary(
+          course: '4.º Secundaria B',
+          expected: 88,
+          present: 83,
+          male: 46,
+          female: 42,
+          genderNotRegistered: 0,
+        ),
+        CourseAttendanceSummary(
+          course: '5.º Secundaria C',
+          expected: 86,
+          present: 76,
+          male: 40,
+          female: 46,
+          genderNotRegistered: 0,
+        ),
+      ],
     );
   }
 
@@ -118,6 +153,17 @@ class MockAttendanceRepository implements AttendanceRepository {
       );
     }
     return ScanResult(record: record);
+  }
+
+  @override
+  Future<ScanResult> registerManual(int studentCode) {
+    if (studentCode != 148) {
+      throw const AttendanceException(
+        AttendanceFailureKind.studentNotFound,
+        'No existe un estudiante con ese ID.',
+      );
+    }
+    return registerQr('MANUAL-$studentCode');
   }
 
   @override

@@ -119,12 +119,26 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     super.dispose();
   }
 
-  Future<void> _submit(String token) async {
+  Future<void> _submitQr(String token) => _submit(
+    () => ref.read(scannerViewModelProvider).submitQr(token),
+    manual: false,
+  );
+
+  Future<void> _submitManual(int studentCode) => _submit(
+    () => ref.read(scannerViewModelProvider).submitManual(studentCode),
+    manual: true,
+  );
+
+  Future<void> _submit(
+    Future<ScanResult?> Function() command, {
+    required bool manual,
+  }) async {
     if (_handling) return;
     _readabilityTimer?.cancel();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     _handling = true;
     if (_usesMobileScanner) await _scanner.stop();
-    final result = await ref.read(scannerViewModelProvider).submit(token);
+    final result = await command();
     if (!mounted) return;
     if (result != null) {
       await HapticFeedback.mediumImpact();
@@ -138,7 +152,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     } else {
       await HapticFeedback.vibrate();
       if (!mounted) return;
-      await _showFailure();
+      await _showFailure(manual: manual);
       _handling = false;
       ref.read(scannerViewModelProvider).retry();
       await _startScanner();
@@ -146,57 +160,33 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     }
   }
 
-  Future<void> _showFailure() async {
+  Future<void> _showFailure({required bool manual}) async {
     final failure = ref.read(scannerViewModelProvider).failure!;
     final title = switch (failure.kind) {
       AttendanceFailureKind.unreadableQr => 'Código ilegible',
       AttendanceFailureKind.inactiveStudent => 'Credencial inactiva',
+      AttendanceFailureKind.studentNotFound => 'Estudiante no encontrado',
       AttendanceFailureKind.unauthorized => 'Acceso denegado',
       AttendanceFailureKind.network => 'Sin conexión',
-      _ => 'QR no registrado',
+      _ => manual ? 'No se registró la asistencia' : 'QR no registrado',
     };
     await showAppErrorDialog(
       context,
       title: title,
       message: failure.message,
-      actionLabel: 'Escanear nuevamente',
+      actionLabel: manual ? 'Intentar nuevamente' : 'Escanear nuevamente',
     );
   }
 
   Future<void> _manualEntry() async {
     _readabilityTimer?.cancel();
-    final controller = TextEditingController();
-    final token = await showDialog<String>(
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final studentCode = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const AppDialogHeader(
-          title: 'Ingreso manual',
-          subtitle: 'Valida una credencial sin utilizar la cámara',
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Código de credencial',
-            prefixIcon: Icon(LucideIcons.keyboard, size: 18),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(context, controller.text),
-            icon: const Icon(LucideIcons.badgeCheck, size: 17),
-            label: const Text('Validar'),
-          ),
-        ],
-      ),
+      builder: (context) => const _ManualAttendanceDialog(),
     );
-    controller.dispose();
-    if (token != null && token.trim().isNotEmpty) {
-      await _submit(token);
+    if (studentCode != null) {
+      await _submitManual(studentCode);
     } else {
       _scheduleReadabilityHint();
     }
@@ -274,7 +264,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   Widget _cameraWorkspace() {
     if (!_usesMobileScanner) {
       return DesktopCameraScanner(
-        onDetect: _submit,
+        onDetect: _submitQr,
         onManual: _manualEntry,
         overlay: const IgnorePointer(child: _ScannerOverlay()),
       );
@@ -289,7 +279,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
             tapToFocus: true,
             onDetect: (capture) {
               final value = capture.barcodes.firstOrNull?.rawValue;
-              if (value != null) _submit(value);
+              if (value != null) _submitQr(value);
             },
             placeholderBuilder: (context) => const _CameraLoading(),
             errorBuilder: (context, error) => _CameraUnavailable(
@@ -345,6 +335,70 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
     );
   }
+}
+
+class _ManualAttendanceDialog extends StatefulWidget {
+  const _ManualAttendanceDialog();
+
+  @override
+  State<_ManualAttendanceDialog> createState() =>
+      _ManualAttendanceDialogState();
+}
+
+class _ManualAttendanceDialogState extends State<_ManualAttendanceDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(context, int.parse(_controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const AppDialogHeader(
+      title: 'Ingreso manual',
+      subtitle: 'Registra asistencia sin utilizar la cámara',
+    ),
+    content: Form(
+      key: _formKey,
+      child: TextFormField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(
+          labelText: 'ID de estudiante',
+          prefixIcon: Icon(LucideIcons.hash, size: 18),
+        ),
+        validator: (value) {
+          final code = int.tryParse(value ?? '');
+          return code == null || code < 1
+              ? 'Ingresa un ID de estudiante válido'
+              : null;
+        },
+        onFieldSubmitted: (_) => _submit(),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton.icon(
+        onPressed: _submit,
+        icon: const Icon(LucideIcons.badgeCheck, size: 17),
+        label: const Text('Registrar'),
+      ),
+    ],
+  );
 }
 
 class _ScannerOverlay extends StatefulWidget {
