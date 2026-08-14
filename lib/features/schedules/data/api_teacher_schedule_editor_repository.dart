@@ -142,7 +142,6 @@ class ApiTeacherScheduleEditorRepository
           .map(
             (item) => ScheduleSubject(
               id: (item as Map<String, dynamic>)['id'].toString(),
-              code: item['codigo'].toString(),
               name: item['nombre'].toString(),
             ),
           )
@@ -166,7 +165,6 @@ class ApiTeacherScheduleEditorRepository
   ScheduleClassroom _classroomFromJson(Map<String, dynamic> json) =>
       ScheduleClassroom(
         id: json['id'].toString(),
-        code: json['codigo'].toString(),
         name: json['nombre'].toString(),
         capacity: (json['capacidad'] as num?)?.toInt(),
         location: json['ubicacion']?.toString(),

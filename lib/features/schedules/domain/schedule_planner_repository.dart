@@ -14,4 +14,13 @@ abstract interface class SchedulePlannerRepository {
   });
 
   Future<void> saveGeneralConfig(GeneralScheduleDraft draft);
+
+  Future<ScheduleSubject> saveSubject(ScheduleSubjectDraft draft, {String? id});
+  Future<void> deactivateSubject(String id);
+
+  Future<ScheduleClassroom> saveClassroom(
+    ScheduleClassroomDraft draft, {
+    String? id,
+  });
+  Future<void> deactivateClassroom(String id);
 }

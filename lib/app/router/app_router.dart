@@ -15,8 +15,8 @@ import 'package:asisteqr_baker/features/people/presentation/teachers_page.dart';
 import 'package:asisteqr_baker/features/credentials/presentation/credentials_page.dart';
 import 'package:asisteqr_baker/features/reports/presentation/courses_page.dart';
 import 'package:asisteqr_baker/features/reports/presentation/reports_page.dart';
+import 'package:asisteqr_baker/features/schedules/presentation/schedule_catalog_page.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_page.dart';
-import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_editor_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -106,6 +106,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadePage(state, const CoursesPage()),
       ),
       GoRoute(
+        path: '/materias',
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          const ScheduleCatalogPage(catalog: ScheduleCatalogType.subjects),
+        ),
+      ),
+      GoRoute(
+        path: '/aulas',
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          const ScheduleCatalogPage(catalog: ScheduleCatalogType.classrooms),
+        ),
+      ),
+      GoRoute(
         path: '/estudiantes',
         pageBuilder: (context, state) => _fadePage(state, const StudentsPage()),
       ),
@@ -115,12 +129,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/docentes/:docenteId/horario',
-        pageBuilder: (context, state) => _slidePage(
-          state,
-          TeacherScheduleEditorPage(
-            teacherId: state.pathParameters['docenteId']!,
-          ),
-        ),
+        redirect: (context, state) =>
+            '/horarios?perspectiva=docente&recursoId=${state.pathParameters['docenteId']!}',
       ),
       GoRoute(
         path: '/horarios',

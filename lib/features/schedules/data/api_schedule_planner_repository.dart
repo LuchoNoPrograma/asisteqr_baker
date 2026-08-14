@@ -46,7 +46,6 @@ class ApiSchedulePlannerRepository implements SchedulePlannerRepository {
                   'cursoId': item.courseId,
                   'materiaId': item.subjectId,
                   'docenteId': item.teacherId,
-                  'minutosSemanales': item.weeklyMinutes,
                 },
               )
               .toList(),
@@ -108,6 +107,79 @@ class ApiSchedulePlannerRepository implements SchedulePlannerRepository {
     }
   }
 
+  @override
+  Future<ScheduleSubject> saveSubject(
+    ScheduleSubjectDraft draft, {
+    String? id,
+  }) async {
+    try {
+      final response = id == null
+          ? await _client.dio.post<Map<String, dynamic>>(
+              '/materias',
+              data: {'nombre': draft.name.trim()},
+            )
+          : await _client.dio.patch<Map<String, dynamic>>(
+              '/materias/$id',
+              data: {'nombre': draft.name.trim()},
+            );
+      return _subjectFromJson(response.data!);
+    } on DioException catch (error) {
+      throw TeachingScheduleException(
+        _message(error, 'No se pudo guardar la materia.'),
+      );
+    }
+  }
+
+  @override
+  Future<void> deactivateSubject(String id) async {
+    try {
+      await _client.dio.delete<void>('/materias/$id');
+    } on DioException catch (error) {
+      throw TeachingScheduleException(
+        _message(error, 'No se pudo desactivar la materia.'),
+      );
+    }
+  }
+
+  @override
+  Future<ScheduleClassroom> saveClassroom(
+    ScheduleClassroomDraft draft, {
+    String? id,
+  }) async {
+    final payload = {
+      'nombre': draft.name.trim(),
+      'capacidad': draft.capacity,
+      'ubicacion': _optional(draft.location),
+    };
+    try {
+      final response = id == null
+          ? await _client.dio.post<Map<String, dynamic>>(
+              '/aulas',
+              data: payload,
+            )
+          : await _client.dio.patch<Map<String, dynamic>>(
+              '/aulas/$id',
+              data: payload,
+            );
+      return _classroomFromJson(response.data!);
+    } on DioException catch (error) {
+      throw TeachingScheduleException(
+        _message(error, 'No se pudo guardar el aula.'),
+      );
+    }
+  }
+
+  @override
+  Future<void> deactivateClassroom(String id) async {
+    try {
+      await _client.dio.delete<void>('/aulas/$id');
+    } on DioException catch (error) {
+      throw TeachingScheduleException(
+        _message(error, 'No se pudo desactivar el aula.'),
+      );
+    }
+  }
+
   SchedulePlannerData _fromJson(Map<String, dynamic> json) {
     final period = json['periodo'] as Map<String, dynamic>;
     final config = json['configuracion'] as Map<String, dynamic>;
@@ -149,25 +221,11 @@ class ApiSchedulePlannerRepository implements SchedulePlannerRepository {
           .toList(),
       subjects: (json['materias'] as List<dynamic>)
           .map((item) => item as Map<String, dynamic>)
-          .map(
-            (item) => ScheduleSubject(
-              id: item['id'].toString(),
-              code: item['codigo'].toString(),
-              name: item['nombre'].toString(),
-            ),
-          )
+          .map(_subjectFromJson)
           .toList(),
       classrooms: (json['aulas'] as List<dynamic>)
           .map((item) => item as Map<String, dynamic>)
-          .map(
-            (item) => ScheduleClassroom(
-              id: item['id'].toString(),
-              code: item['codigo'].toString(),
-              name: item['nombre'].toString(),
-              capacity: (item['capacidad'] as num?)?.toInt(),
-              location: item['ubicacion']?.toString(),
-            ),
-          )
+          .map(_classroomFromJson)
           .toList(),
       teachers: (json['docentes'] as List<dynamic>)
           .map((item) => item as Map<String, dynamic>)
@@ -224,5 +282,24 @@ class ApiSchedulePlannerRepository implements SchedulePlannerRepository {
       if (message != null) return message.toString();
     }
     return fallback;
+  }
+
+  ScheduleSubject _subjectFromJson(Map<String, dynamic> json) =>
+      ScheduleSubject(
+        id: json['id'].toString(),
+        name: json['nombre'].toString(),
+      );
+
+  ScheduleClassroom _classroomFromJson(Map<String, dynamic> json) =>
+      ScheduleClassroom(
+        id: json['id'].toString(),
+        name: json['nombre'].toString(),
+        capacity: (json['capacidad'] as num?)?.toInt(),
+        location: json['ubicacion']?.toString(),
+      );
+
+  String? _optional(String? value) {
+    final normalized = value?.trim();
+    return normalized == null || normalized.isEmpty ? null : normalized;
   }
 }

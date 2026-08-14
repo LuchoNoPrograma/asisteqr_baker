@@ -100,6 +100,39 @@ class SchedulePlannerData {
   final List<ScheduleTeacher> teachers;
   final List<AcademicAssignment> assignments;
   final List<PlannerScheduleBlock> blocks;
+
+  SchedulePlannerData copyWith({
+    List<ScheduleSubject>? subjects,
+    List<ScheduleClassroom>? classrooms,
+  }) => SchedulePlannerData(
+    period: period,
+    config: config,
+    breaks: breaks,
+    courses: courses,
+    subjects: subjects ?? this.subjects,
+    classrooms: classrooms ?? this.classrooms,
+    teachers: teachers,
+    assignments: assignments,
+    blocks: blocks,
+  );
+}
+
+class ScheduleSubjectDraft {
+  const ScheduleSubjectDraft({required this.name});
+
+  final String name;
+}
+
+class ScheduleClassroomDraft {
+  const ScheduleClassroomDraft({
+    required this.name,
+    this.capacity,
+    this.location,
+  });
+
+  final String name;
+  final int? capacity;
+  final String? location;
 }
 
 class PlannerBlockDraft {

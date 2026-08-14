@@ -1490,7 +1490,7 @@ class _ClassBlockDialogState extends State<_ClassBlockDialog> {
               label: 'Aula',
               value: classroomId,
               items: widget.data.classrooms
-                  .map((item) => (item.id, '${item.code} · ${item.name}'))
+                  .map((item) => (item.id, item.name))
                   .toList(),
               onChanged: (value) => setState(() => classroomId = value),
             ),

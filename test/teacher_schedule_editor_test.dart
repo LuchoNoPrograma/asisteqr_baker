@@ -195,12 +195,8 @@ class _EditorRepository implements TeacherScheduleEditorRepository {
       ),
     ],
     courses: [ScheduleCourse(id: 'course-1', name: '4.º Secundaria B')],
-    subjects: [
-      ScheduleSubject(id: 'subject-1', code: 'MAT', name: 'MATEMÁTICA'),
-    ],
-    classrooms: [
-      ScheduleClassroom(id: 'room-1', code: '4B', name: 'Aula 4.º B'),
-    ],
+    subjects: [ScheduleSubject(id: 'subject-1', name: 'MATEMÁTICA')],
+    classrooms: [ScheduleClassroom(id: 'room-1', name: 'Aula 4.º B')],
     blocks: [
       TeacherScheduleBlock(
         id: 'block-1',

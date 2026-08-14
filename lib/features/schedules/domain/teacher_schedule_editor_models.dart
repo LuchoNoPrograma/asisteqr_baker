@@ -104,26 +104,19 @@ class ScheduleCourse {
 }
 
 class ScheduleSubject {
-  const ScheduleSubject({
-    required this.id,
-    required this.code,
-    required this.name,
-  });
+  const ScheduleSubject({required this.id, required this.name});
   final String id;
-  final String code;
   final String name;
 }
 
 class ScheduleClassroom {
   const ScheduleClassroom({
     required this.id,
-    required this.code,
     required this.name,
     this.capacity,
     this.location,
   });
   final String id;
-  final String code;
   final String name;
   final int? capacity;
   final String? location;
