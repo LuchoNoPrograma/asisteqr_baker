@@ -1,8 +1,11 @@
 import 'package:asisteqr_baker/app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:quickalert/quickalert.dart';
 
 enum AppFeedbackType { success, error, warning, info }
+
+enum SavedFileAction { close, preview, reveal }
 
 Future<void> showAppFeedback(
   BuildContext context, {
@@ -87,3 +90,68 @@ Future<void> showAppErrorDialog(
   message: message,
   actionLabel: actionLabel,
 );
+
+Future<SavedFileAction> showSavedFileDialog(
+  BuildContext context, {
+  required String fileName,
+  required String location,
+  required bool canReveal,
+}) async {
+  final result = await showDialog<SavedFileAction>(
+    context: context,
+    builder: (context) => AlertDialog(
+      icon: const Icon(
+        LucideIcons.circleCheckBig,
+        color: AppColors.green,
+        size: 34,
+      ),
+      title: const Text('PDF guardado'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              fileName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Ubicación',
+              style: TextStyle(
+                color: AppColors.inkMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(location),
+          ],
+        ),
+      ),
+      actionsOverflowDirection: VerticalDirection.down,
+      actionsOverflowButtonSpacing: 6,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, SavedFileAction.close),
+          child: const Text('Cerrar'),
+        ),
+        if (canReveal)
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, SavedFileAction.reveal),
+            icon: const Icon(LucideIcons.folderOpen, size: 18),
+            label: const Text('Abrir carpeta'),
+          ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context, SavedFileAction.preview),
+          icon: const Icon(LucideIcons.eye, size: 18),
+          label: const Text('Ver o imprimir'),
+        ),
+      ],
+    ),
+  );
+  return result ?? SavedFileAction.close;
+}

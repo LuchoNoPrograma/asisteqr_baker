@@ -8,12 +8,14 @@ class AppDataColumn<T> {
     required this.cellBuilder,
     this.compare,
     this.numeric = false,
+    this.columnWidth,
   });
 
   final String label;
   final Widget Function(BuildContext context, T item) cellBuilder;
   final int Function(T first, T second)? compare;
   final bool numeric;
+  final TableColumnWidth? columnWidth;
 }
 
 class AppDataFilterOption<T> {
@@ -40,8 +42,8 @@ class AppDataTable<T> extends StatefulWidget {
     this.searchHint = 'Buscar',
     this.emptyMessage = 'No hay registros para mostrar.',
     this.rowsPerPage = 10,
-    this.dataRowMinHeight = 52,
-    this.dataRowMaxHeight = 72,
+    this.dataRowMinHeight = 48,
+    this.dataRowMaxHeight = 60,
     this.columnSpacing = 44,
   });
 
@@ -290,6 +292,7 @@ class _AppDataTableState<T> extends State<AppDataTable<T>> {
                 for (var index = 0; index < widget.columns.length; index++)
                   DataColumn(
                     label: Text(widget.columns[index].label),
+                    columnWidth: widget.columns[index].columnWidth,
                     numeric: widget.columns[index].numeric,
                     onSort: widget.columns[index].compare == null
                         ? null
