@@ -134,8 +134,12 @@ segunda barra de filtros duplicada encima del componente.
   debe producir scroll lateral global.
 - Usar los patrones visuales existentes: interfaz institucional sobria, radios
   de hasta 8 px y color reservado para acciones y estados.
-- Antes de cerrar cambios de UI, ejecutar `flutter analyze` y las pruebas
-  enfocadas relevantes. No usar `flutter build` como sustituto de pruebas.
+- Crear y ejecutar pruebas unicamente cuando el cambio afecte el nucleo de
+  persistencia: repositorios, mapeo de datos, transacciones, migraciones o
+  guardado. No crear ni ejecutar pruebas de UI, widgets, responsive, navegacion
+  o textos.
+- Antes de cerrar cambios de UI, ejecutar solamente `flutter analyze`. No usar
+  `flutter build` como sustituto del analisis estatico.
 
 ## Edicion
 

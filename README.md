@@ -4,7 +4,7 @@ Aplicación Flutter responsive para registrar asistencia mediante QR, verificar 
 
 Incluye CRUD responsive de estudiantes, docentes, cursos, horarios de ingreso y planillas semanales. El formulario de estudiantes no solicita código: la API devuelve el consecutivo asignado por PostgreSQL. Las fotografías visibles y las credenciales PDF usan la fuente entregada por la API; las imágenes de demostración quedan limitadas a los repositorios mock.
 
-El escáner mantiene el ciclo de vida de la cámara al cambiar de aplicación, diferencia errores de permiso y compatibilidad, y conserva el ingreso manual como alternativa. Usa `mobile_scanner` en Android y `opencv_dart` para captura y lectura QR nativa en Linux y Windows. Las confirmaciones, advertencias y errores importantes se presentan con `quickalert` como alertas modales animadas de alto contraste.
+El escáner mantiene el ciclo de vida de la cámara al cambiar de aplicación, diferencia errores de permiso y compatibilidad, y conserva el ingreso manual por ID de estudiante como alternativa. Usa `mobile_scanner` en Android, FFmpeg/V4L2 para capturar la cámara en Linux y `opencv_dart` para decodificar el QR. Windows conserva la captura y lectura nativa con OpenCV. Las confirmaciones, advertencias y errores importantes se presentan con `quickalert` como alertas modales animadas de alto contraste.
 
 ## Desarrollo local
 
@@ -24,7 +24,7 @@ flutter run -d linux \
 ## Cámara y plataformas
 
 - Android solicita el permiso de cámara al entrar a `Escanear`. El manifiesto declara la cámara como opcional para que el ingreso manual siga disponible en equipos sin cámara.
-- Los ejecutables nativos de Linux y Windows usan `opencv_dart` para abrir la cámara y decodificar QR. Si no existe una cámara disponible, la interfaz muestra el error y permite reintentar o usar el ingreso manual.
+- Linux requiere `ffmpeg` disponible en `PATH`; captura `/dev/video0` mediante V4L2 y entrega los frames a OpenCV para decodificar el QR. Windows usa OpenCV para captura y decodificación. Si no existe una cámara disponible, la interfaz muestra el error y permite reintentar o usar el ingreso manual.
 
 Para Android Emulator:
 
