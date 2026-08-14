@@ -9,7 +9,6 @@ class TeachersViewModel extends ChangeNotifier {
   final PeopleRepository _repository;
 
   List<TeacherEntry> teachers = const [];
-  List<CourseOption> courses = const [];
   bool loading = false;
   bool saving = false;
   String? error;
@@ -20,12 +19,7 @@ class TeachersViewModel extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final results = await Future.wait([
-        _repository.getTeachers(search: search),
-        _repository.getCourses(),
-      ]);
-      teachers = results[0] as List<TeacherEntry>;
-      courses = results[1] as List<CourseOption>;
+      teachers = await _repository.getTeachers(search: search);
     } on PeopleException catch (exception) {
       error = exception.message;
     } finally {

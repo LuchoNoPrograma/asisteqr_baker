@@ -129,7 +129,6 @@ class ApiPeopleRepository implements PeopleRepository {
         'correo': _optional(draft.email),
         'telefono': _optional(draft.phone),
         'fotografiaUrl': _optional(draft.photoUrl),
-        'cursoIds': draft.courseIds,
       };
       final response = id == null
           ? await _client.dio.post<Map<String, dynamic>>(
@@ -189,13 +188,6 @@ class ApiPeopleRepository implements PeopleRepository {
     phone: json['telefono']?.toString(),
     photoUrl: json['fotografiaUrl']?.toString(),
     status: '${json['estado']}',
-    courses: (json['cursos'] as List<dynamic>)
-        .map((item) => item as Map<String, dynamic>)
-        .map(
-          (item) =>
-              CourseOption(id: '${item['id']}', name: '${item['nombre']}'),
-        )
-        .toList(),
   );
 
   String _message(DioException error, String fallback) {

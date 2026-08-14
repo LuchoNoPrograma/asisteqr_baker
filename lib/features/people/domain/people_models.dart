@@ -56,7 +56,6 @@ class TeacherEntry {
     required this.lastNames,
     required this.specialty,
     required this.status,
-    required this.courses,
     this.documentNumber,
     this.email,
     this.phone,
@@ -73,7 +72,6 @@ class TeacherEntry {
   final String? phone;
   final String? photoUrl;
   final String status;
-  final List<CourseOption> courses;
 
   String get fullName => '$firstNames $lastNames';
 
@@ -88,7 +86,6 @@ class TeacherEntry {
     phone: phone,
     photoUrl: photoUrl,
     status: status ?? this.status,
-    courses: courses,
   );
 }
 
@@ -119,7 +116,6 @@ class TeacherDraft {
     required this.firstNames,
     required this.lastNames,
     required this.specialty,
-    required this.courseIds,
     this.documentNumber,
     this.email,
     this.phone,
@@ -133,5 +129,4 @@ class TeacherDraft {
   final String? email;
   final String? phone;
   final String? photoUrl;
-  final List<String> courseIds;
 }

@@ -21,41 +21,6 @@ class CourseSchedule {
   };
 }
 
-final class WeeklyCourseSlot implements Comparable<WeeklyCourseSlot> {
-  const WeeklyCourseSlot({required this.weekday, required this.hour});
-
-  static const firstWeekday = DateTime.monday;
-  static const lastWeekday = DateTime.friday;
-  static const firstHour = 8;
-  static const lastHour = 19;
-
-  final int weekday;
-  final int hour;
-
-  bool get isWithinMatrix =>
-      weekday >= firstWeekday &&
-      weekday <= lastWeekday &&
-      hour >= firstHour &&
-      hour <= lastHour;
-
-  String get key => '$weekday-$hour';
-
-  @override
-  int compareTo(WeeklyCourseSlot other) {
-    final dayComparison = weekday.compareTo(other.weekday);
-    return dayComparison != 0 ? dayComparison : hour.compareTo(other.hour);
-  }
-
-  static List<WeeklyCourseSlot> normalize(Iterable<WeeklyCourseSlot> slots) {
-    final unique = <String, WeeklyCourseSlot>{};
-    for (final slot in slots) {
-      if (slot.isWithinMatrix) unique[slot.key] = slot;
-    }
-    final normalized = unique.values.toList()..sort();
-    return List.unmodifiable(normalized);
-  }
-}
-
 class CourseEntry {
   const CourseEntry({
     required this.id,
@@ -66,7 +31,6 @@ class CourseEntry {
     required this.studentCount,
     required this.teacherCount,
     required this.schedules,
-    required this.weeklySchedule,
   });
 
   final String id;
@@ -77,12 +41,8 @@ class CourseEntry {
   final int studentCount;
   final int teacherCount;
   final List<CourseSchedule> schedules;
-  final List<WeeklyCourseSlot> weeklySchedule;
 
-  CourseEntry copyWith({
-    List<CourseSchedule>? schedules,
-    List<WeeklyCourseSlot>? weeklySchedule,
-  }) => CourseEntry(
+  CourseEntry copyWith({List<CourseSchedule>? schedules}) => CourseEntry(
     id: id,
     name: name,
     level: level,
@@ -91,7 +51,6 @@ class CourseEntry {
     studentCount: studentCount,
     teacherCount: teacherCount,
     schedules: schedules ?? this.schedules,
-    weeklySchedule: weeklySchedule ?? this.weeklySchedule,
   );
 }
 

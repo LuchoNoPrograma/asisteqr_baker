@@ -87,22 +87,6 @@ void main() {
       expect(model.saving, isFalse);
     },
   );
-
-  test('reemplaza la planilla semanal completa y la vuelve a cargar', () async {
-    final repository = _CourseRepository();
-    final model = CoursesViewModel(repository);
-    await model.saveCourse(draft);
-
-    const slots = [
-      WeeklyCourseSlot(weekday: DateTime.monday, hour: 8),
-      WeeklyCourseSlot(weekday: DateTime.monday, hour: 9),
-      WeeklyCourseSlot(weekday: DateTime.friday, hour: 19),
-    ];
-
-    expect(await model.saveWeeklySchedule(model.courses.single, slots), isTrue);
-    expect(model.saving, isFalse);
-    expect(model.courses.single.weeklySchedule, slots);
-  });
 }
 
 class _CourseRepository implements CourseRepository {
@@ -123,7 +107,6 @@ class _CourseRepository implements CourseRepository {
       studentCount: 0,
       teacherCount: 0,
       schedules: const [],
-      weeklySchedule: const [],
     );
     courses.add(course);
     return course;
@@ -146,7 +129,6 @@ class _CourseRepository implements CourseRepository {
       studentCount: current.studentCount,
       teacherCount: current.teacherCount,
       schedules: current.schedules,
-      weeklySchedule: current.weeklySchedule,
     );
     courses[index] = updated;
     return updated;
@@ -192,29 +174,6 @@ class _CourseRepository implements CourseRepository {
       courseId,
       current.schedules.where((schedule) => schedule.id != scheduleId).toList(),
     );
-  }
-
-  @override
-  Future<List<WeeklyCourseSlot>> replaceWeeklySchedule(
-    String courseId,
-    Iterable<WeeklyCourseSlot> slots,
-  ) async {
-    final index = courses.indexWhere((course) => course.id == courseId);
-    if (index == -1) throw const CourseException('Curso no encontrado');
-    final normalized = WeeklyCourseSlot.normalize(slots);
-    final current = courses[index];
-    courses[index] = CourseEntry(
-      id: current.id,
-      name: current.name,
-      level: current.level,
-      parallel: current.parallel,
-      year: current.year,
-      studentCount: current.studentCount,
-      teacherCount: current.teacherCount,
-      schedules: current.schedules,
-      weeklySchedule: normalized,
-    );
-    return normalized;
   }
 
   CourseSchedule _scheduleFromDraft(String id, ScheduleDraft draft) =>

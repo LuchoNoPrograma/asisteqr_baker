@@ -105,32 +105,6 @@ class ApiCourseRepository implements CourseRepository {
     }
   }
 
-  @override
-  Future<List<WeeklyCourseSlot>> replaceWeeklySchedule(
-    String courseId,
-    Iterable<WeeklyCourseSlot> slots,
-  ) async {
-    try {
-      final normalized = WeeklyCourseSlot.normalize(slots);
-      final response = await _client.dio.put<Map<String, dynamic>>(
-        '/cursos/$courseId/planilla-horaria',
-        data: {
-          'celdas': [
-            for (final slot in normalized)
-              {'diaSemana': slot.weekday, 'hora': slot.hour},
-          ],
-        },
-      );
-      return (response.data!['celdas'] as List<dynamic>? ?? const [])
-          .map((item) => _weeklySlot(item as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (error) {
-      throw CourseException(
-        _message(error, 'No se pudo guardar la planilla horaria.'),
-      );
-    }
-  }
-
   CourseEntry _course(Map<String, dynamic> json) => CourseEntry(
     id: '${json['id']}',
     name: '${json['nombre']}',
@@ -142,9 +116,6 @@ class ApiCourseRepository implements CourseRepository {
     schedules: (json['horarios'] as List<dynamic>? ?? const [])
         .map((item) => _schedule(item as Map<String, dynamic>))
         .toList(),
-    weeklySchedule: (json['planillaHorario'] as List<dynamic>? ?? const [])
-        .map((item) => _weeklySlot(item as Map<String, dynamic>))
-        .toList(),
   );
 
   CourseSchedule _schedule(Map<String, dynamic> json) => CourseSchedule(
@@ -153,11 +124,6 @@ class ApiCourseRepository implements CourseRepository {
     deadline: '${json['horaLimite']}',
     toleranceMinutes: (json['toleranciaMinutos'] as num).toInt(),
     timeZone: '${json['zonaHoraria']}',
-  );
-
-  WeeklyCourseSlot _weeklySlot(Map<String, dynamic> json) => WeeklyCourseSlot(
-    weekday: (json['diaSemana'] as num).toInt(),
-    hour: (json['hora'] as num).toInt(),
   );
 
   String _message(DioException error, String fallback) {

@@ -12,10 +12,6 @@ abstract interface class CourseRepository {
     ScheduleDraft draft,
   );
   Future<void> deactivateSchedule(String courseId, String scheduleId);
-  Future<List<WeeklyCourseSlot>> replaceWeeklySchedule(
-    String courseId,
-    Iterable<WeeklyCourseSlot> slots,
-  );
 }
 
 class CourseException implements Exception {

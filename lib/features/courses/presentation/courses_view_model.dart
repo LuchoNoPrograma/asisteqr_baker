@@ -92,15 +92,6 @@ class CoursesViewModel extends ChangeNotifier {
     );
   });
 
-  Future<bool> saveWeeklySchedule(
-    CourseEntry course,
-    Iterable<WeeklyCourseSlot> slots,
-  ) => _run(() async {
-    final saved = await _repository.replaceWeeklySchedule(course.id, slots);
-    final currentCourse = _currentCourse(course);
-    _replaceCourse(course.id, currentCourse.copyWith(weeklySchedule: saved));
-  });
-
   String? takeError() {
     final message = error;
     error = null;

@@ -20,7 +20,6 @@ class MockCourseRepository implements CourseRepository {
           timeZone: 'America/La_Paz',
         ),
       ],
-      weeklySchedule: [],
     ),
   ];
 
@@ -90,28 +89,6 @@ class MockCourseRepository implements CourseRepository {
     );
   }
 
-  @override
-  Future<List<WeeklyCourseSlot>> replaceWeeklySchedule(
-    String courseId,
-    Iterable<WeeklyCourseSlot> slots,
-  ) async {
-    final normalized = WeeklyCourseSlot.normalize(slots);
-    final index = courses.indexWhere((item) => item.id == courseId);
-    final current = courses[index];
-    courses[index] = CourseEntry(
-      id: current.id,
-      name: current.name,
-      level: current.level,
-      parallel: current.parallel,
-      year: current.year,
-      studentCount: current.studentCount,
-      teacherCount: current.teacherCount,
-      schedules: current.schedules,
-      weeklySchedule: normalized,
-    );
-    return normalized;
-  }
-
   CourseEntry _fromDraft(
     String id,
     CourseDraft draft, {
@@ -125,7 +102,6 @@ class MockCourseRepository implements CourseRepository {
     studentCount: current?.studentCount ?? 0,
     teacherCount: current?.teacherCount ?? 0,
     schedules: current?.schedules ?? const [],
-    weeklySchedule: current?.weeklySchedule ?? const [],
   );
 
   CourseSchedule _schedule(String id, ScheduleDraft draft) => CourseSchedule(
@@ -151,7 +127,6 @@ class MockCourseRepository implements CourseRepository {
       studentCount: current.studentCount,
       teacherCount: current.teacherCount,
       schedules: update(current.schedules),
-      weeklySchedule: current.weeklySchedule,
     );
   }
 }

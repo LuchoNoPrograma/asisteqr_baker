@@ -305,7 +305,7 @@ class _CoursesTable extends StatelessWidget {
             ],
           ),
         ],
-        dataRowMaxHeight: 92,
+        dataRowMaxHeight: 60,
         columns: [
           AppDataColumn(
             label: 'Curso',

@@ -1,5 +1,6 @@
 import 'package:asisteqr_baker/app/providers.dart';
 import 'package:asisteqr_baker/app/theme/app_colors.dart';
+import 'package:asisteqr_baker/core/widgets/active_status_badge.dart';
 import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
@@ -28,7 +29,6 @@ class TeachersPage extends ConsumerWidget {
       context: context,
       builder: (context) => _TeacherDialog(
         teacher: teacher,
-        courses: model.courses,
         onSave: (draft) => model.save(draft, current: teacher),
         errorMessage: model.takeError,
       ),
@@ -130,9 +130,7 @@ class TeachersPage extends ConsumerWidget {
                         ),
                         if (canManage)
                           ElevatedButton.icon(
-                            onPressed: model.courses.isEmpty
-                                ? null
-                                : () => _edit(context, ref),
+                            onPressed: () => _edit(context, ref),
                             icon: const Icon(
                               LucideIcons.userRoundPlus,
                               size: 18,
@@ -171,8 +169,9 @@ class TeachersPage extends ConsumerWidget {
                         teachers: model.teachers,
                         canManage: canManage,
                         onEdit: (item) => _edit(context, ref, item),
-                        onSchedule: (item) =>
-                            context.go('/docentes/${item.id}/horario'),
+                        onSchedule: (item) => context.go(
+                          '/horarios?perspectiva=docente&recursoId=${item.id}',
+                        ),
                         onDeactivate: (item) => _deactivate(context, ref, item),
                       )
                     : ListView.builder(
@@ -184,8 +183,9 @@ class TeachersPage extends ConsumerWidget {
                             teacher: teacher,
                             canManage: canManage,
                             onEdit: () => _edit(context, ref, teacher),
-                            onSchedule: () =>
-                                context.go('/docentes/${teacher.id}/horario'),
+                            onSchedule: () => context.go(
+                              '/horarios?perspectiva=docente&recursoId=${teacher.id}',
+                            ),
                             onDeactivate: () =>
                                 _deactivate(context, ref, teacher),
                           );
@@ -223,18 +223,11 @@ class _TeachersTable extends StatelessWidget {
             .toSet()
             .toList()
           ..sort();
-    final courses =
-        teachers
-            .expand((teacher) => teacher.courses)
-            .map((course) => course.name)
-            .toSet()
-            .toList()
-          ..sort();
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
       child: AppDataTable<TeacherEntry>(
         items: teachers,
-        searchHint: 'Buscar docente, especialidad o contacto',
+        searchHint: 'Buscar docente, código, especialidad o contacto',
         searchText: (teacher) => [
           teacher.teacherCode,
           teacher.fullName,
@@ -242,31 +235,19 @@ class _TeachersTable extends StatelessWidget {
           teacher.email,
           teacher.phone,
           teacher.status,
-          ...teacher.courses.map((course) => course.name),
         ].whereType<Object>().join(' '),
         filters: [
           AppDataFilter(
             label: 'Estado',
             options: [
               AppDataFilterOption(
-                label: 'Activos',
+                label: 'ACTIVOS',
                 matches: (teacher) => teacher.status == 'ACTIVO',
               ),
               AppDataFilterOption(
-                label: 'Inactivos',
+                label: 'INACTIVOS',
                 matches: (teacher) => teacher.status != 'ACTIVO',
               ),
-            ],
-          ),
-          AppDataFilter(
-            label: 'Curso',
-            options: [
-              for (final course in courses)
-                AppDataFilterOption(
-                  label: course,
-                  matches: (teacher) =>
-                      teacher.courses.any((item) => item.name == course),
-                ),
             ],
           ),
           AppDataFilter(
@@ -283,7 +264,8 @@ class _TeachersTable extends StatelessWidget {
         columnSpacing: 28,
         columns: [
           AppDataColumn(
-            label: 'COD',
+            label: 'Código',
+            columnWidth: const FixedColumnWidth(112),
             compare: (first, second) =>
                 first.teacherCode.compareTo(second.teacherCode),
             cellBuilder: (context, teacher) => Text(
@@ -293,6 +275,7 @@ class _TeachersTable extends StatelessWidget {
           ),
           AppDataColumn(
             label: 'Docente',
+            columnWidth: const IntrinsicColumnWidth(flex: 1),
             compare: (first, second) =>
                 first.fullName.compareTo(second.fullName),
             cellBuilder: (context, teacher) => Row(
@@ -321,18 +304,10 @@ class _TeachersTable extends StatelessWidget {
             cellBuilder: (context, teacher) => Text(teacher.phone ?? '—'),
           ),
           AppDataColumn(
-            label: 'Cursos',
-            cellBuilder: (context, teacher) => Text(
-              teacher.courses.isEmpty
-                  ? 'Sin asignación'
-                  : teacher.courses.map((item) => item.name).join(', '),
-            ),
-          ),
-          AppDataColumn(
             label: 'Estado',
             compare: (first, second) => first.status.compareTo(second.status),
             cellBuilder: (context, teacher) =>
-                _TeacherStatus(active: teacher.status == 'ACTIVO'),
+                ActiveStatusBadge(active: teacher.status == 'ACTIVO'),
           ),
           if (canManage)
             AppDataColumn(
@@ -402,7 +377,7 @@ class _TeacherTile extends StatelessWidget {
             ],
           ),
         ),
-        _TeacherStatus(active: teacher.status == 'ACTIVO'),
+        ActiveStatusBadge(active: teacher.status == 'ACTIVO'),
         if (canManage)
           _TeacherActionsMenu(
             active: teacher.status == 'ACTIVO',
@@ -439,8 +414,8 @@ class _TeacherActionsMenu extends StatelessWidget {
       ),
       if (active)
         AppTableAction(
-          label: 'Configurar horario',
-          icon: LucideIcons.settings2,
+          label: 'Ver horario y carga',
+          icon: LucideIcons.calendarClock,
           onSelected: onSchedule,
         ),
       if (active) AppTableAction.deactivate(onSelected: onDeactivate),
@@ -450,14 +425,12 @@ class _TeacherActionsMenu extends StatelessWidget {
 
 class _TeacherDialog extends StatefulWidget {
   const _TeacherDialog({
-    required this.courses,
     required this.onSave,
     required this.errorMessage,
     this.teacher,
   });
 
   final TeacherEntry? teacher;
-  final List<CourseOption> courses;
   final Future<bool> Function(TeacherDraft) onSave;
   final String? Function() errorMessage;
 
@@ -473,7 +446,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   late final TextEditingController specialty;
   late final TextEditingController email;
   late final TextEditingController phone;
-  late final Set<String> courseIds;
   String? photoUrl;
   bool saving = false;
   bool pickingPhoto = false;
@@ -488,8 +460,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     email = TextEditingController(text: widget.teacher?.email);
     phone = TextEditingController(text: widget.teacher?.phone);
     photoUrl = widget.teacher?.photoUrl;
-    courseIds =
-        widget.teacher?.courses.map((item) => item.id).toSet() ?? <String>{};
   }
 
   @override
@@ -624,43 +594,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                       SchoolFormValidators.phone(value, label: 'teléfono'),
                 ),
               ),
-              const SizedBox(height: 18),
-              const _TeacherSectionTitle(
-                title: 'Cursos bajo responsabilidad',
-                icon: LucideIcons.school,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Selecciona los cursos en los que el docente registra asistencia.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: widget.courses
-                      .map(
-                        (course) => FilterChip(
-                          label: Text(course.name),
-                          selected: courseIds.contains(course.id),
-                          onSelected: (selected) => setState(
-                            () => selected
-                                ? courseIds.add(course.id)
-                                : courseIds.remove(course.id),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
               if (widget.teacher != null) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -726,7 +659,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
         email: SchoolFormValidators.normalizeLower(email.text),
         phone: SchoolFormValidators.normalizeText(phone.text),
         photoUrl: photoUrl,
-        courseIds: courseIds.toList(),
       ),
     );
     if (mounted && result) Navigator.pop(context, true);
@@ -778,27 +710,6 @@ class _TeacherSectionTitle extends StatelessWidget {
       const SizedBox(width: 10),
       const Expanded(child: Divider()),
     ],
-  );
-}
-
-class _TeacherStatus extends StatelessWidget {
-  const _TeacherStatus({required this.active});
-  final bool active;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: active ? AppColors.greenSoft : AppColors.redSoft,
-      borderRadius: BorderRadius.circular(99),
-    ),
-    child: Text(
-      active ? 'Activo' : 'Inactivo',
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: active ? AppColors.green : AppColors.red,
-      ),
-    ),
   );
 }
 

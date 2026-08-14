@@ -1,5 +1,6 @@
 import 'package:asisteqr_baker/app/providers.dart';
 import 'package:asisteqr_baker/app/theme/app_colors.dart';
+import 'package:asisteqr_baker/core/widgets/active_status_badge.dart';
 import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
@@ -258,7 +259,7 @@ class _StudentsTable extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
       child: AppDataTable<StudentEntry>(
         items: students,
-        searchHint: 'Buscar estudiante, tutor o curso',
+        searchHint: 'Buscar estudiante, código, tutor o curso',
         searchText: (student) => [
           student.studentCode,
           student.fullName,
@@ -273,11 +274,11 @@ class _StudentsTable extends StatelessWidget {
             label: 'Estado',
             options: [
               AppDataFilterOption(
-                label: 'Activos',
+                label: 'ACTIVOS',
                 matches: (student) => student.status == 'ACTIVO',
               ),
               AppDataFilterOption(
-                label: 'Inactivos',
+                label: 'INACTIVOS',
                 matches: (student) => student.status != 'ACTIVO',
               ),
             ],
@@ -293,12 +294,13 @@ class _StudentsTable extends StatelessWidget {
             ],
           ),
         ],
-        dataRowMinHeight: 58,
-        dataRowMaxHeight: 78,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 60,
         columnSpacing: 28,
         columns: [
           AppDataColumn(
-            label: 'COD',
+            label: 'Código',
+            columnWidth: const FixedColumnWidth(112),
             compare: (first, second) =>
                 first.studentCode.compareTo(second.studentCode),
             cellBuilder: (context, student) => Text(
@@ -308,6 +310,7 @@ class _StudentsTable extends StatelessWidget {
           ),
           AppDataColumn(
             label: 'Estudiante',
+            columnWidth: const IntrinsicColumnWidth(flex: 1),
             compare: (first, second) =>
                 first.fullName.compareTo(second.fullName),
             cellBuilder: (context, student) => Row(
@@ -353,7 +356,7 @@ class _StudentsTable extends StatelessWidget {
             label: 'Estado',
             compare: (first, second) => first.status.compareTo(second.status),
             cellBuilder: (context, student) =>
-                _StatusLabel(active: student.status == 'ACTIVO'),
+                ActiveStatusBadge(active: student.status == 'ACTIVO'),
           ),
           AppDataColumn(
             label: 'Acciones',
@@ -440,7 +443,7 @@ class _StudentTile extends StatelessWidget {
             ],
           ),
         ),
-        _StatusLabel(active: student.status == 'ACTIVO'),
+        ActiveStatusBadge(active: student.status == 'ACTIVO'),
         AppTableActionsMenu(
           tooltip: 'Acciones del estudiante',
           actions: [
@@ -805,27 +808,6 @@ class _DialogSectionTitle extends StatelessWidget {
       const SizedBox(width: 10),
       const Expanded(child: Divider()),
     ],
-  );
-}
-
-class _StatusLabel extends StatelessWidget {
-  const _StatusLabel({required this.active});
-  final bool active;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: active ? AppColors.greenSoft : AppColors.redSoft,
-      borderRadius: BorderRadius.circular(99),
-    ),
-    child: Text(
-      active ? 'Activo' : 'Retirado',
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: active ? AppColors.green : AppColors.red,
-      ),
-    ),
   );
 }
 

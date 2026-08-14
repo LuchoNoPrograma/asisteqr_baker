@@ -16,7 +16,6 @@ void main() {
     firstNames: 'Julia',
     lastNames: 'Flores',
     specialty: 'Matematica',
-    courseIds: ['course-1'],
   );
 
   test('estudiantes crea, actualiza y retira sin recargar la API', () async {
@@ -52,7 +51,6 @@ void main() {
       firstNames: 'Julia',
       lastNames: 'Flores',
       specialty: 'Fisica',
-      courseIds: ['course-1'],
     );
     expect(await model.save(updated, current: model.teachers.single), isTrue);
     expect(model.teachers.single.specialty, 'Fisica');
@@ -62,7 +60,7 @@ void main() {
     expect(model.saving, isFalse);
   });
 
-  test('expone el error cuando no se pueden cargar los cursos', () async {
+  test('solo estudiantes depende del catálogo de cursos', () async {
     final repository = _PeopleRepository(failCourses: true);
     final students = StudentsViewModel(repository);
     final teachers = TeachersViewModel(repository);
@@ -73,7 +71,7 @@ void main() {
     expect(students.loading, isFalse);
     expect(teachers.loading, isFalse);
     expect(students.error, 'No se pudieron cargar los cursos');
-    expect(teachers.error, 'No se pudieron cargar los cursos');
+    expect(teachers.error, isNull);
   });
 
   test('filtra estudiantes por curso sin perder la busqueda', () async {
@@ -187,7 +185,6 @@ class _PeopleRepository implements PeopleRepository {
     lastNames: draft.lastNames,
     specialty: draft.specialty,
     status: 'ACTIVO',
-    courses: const [course],
     documentNumber: draft.documentNumber,
     email: draft.email,
     phone: draft.phone,

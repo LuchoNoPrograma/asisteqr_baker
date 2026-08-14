@@ -31,7 +31,6 @@ class MockPeopleRepository implements PeopleRepository {
       email: 'm.rodriguez@baker.edu.bo',
       phone: '70112233',
       status: 'ACTIVO',
-      courses: [CourseOption(id: 'course-4b', name: '4.º Secundaria B')],
     ),
   ];
 
@@ -156,9 +155,6 @@ class MockPeopleRepository implements PeopleRepository {
         phone: draft.phone,
         photoUrl: draft.photoUrl,
         status: 'ACTIVO',
-        courses: courses
-            .where((item) => draft.courseIds.contains(item.id))
-            .toList(),
       );
 
   @override
@@ -176,7 +172,6 @@ class MockPeopleRepository implements PeopleRepository {
       phone: item.phone,
       photoUrl: item.photoUrl,
       status: 'INACTIVO',
-      courses: item.courses,
     );
   }
 }
