@@ -123,24 +123,33 @@ class _CredentialRepositoryStub implements CredentialRepository {
   Future<List<CredentialStudent>> getStudents() async => const [
     CredentialStudent(
       id: '1',
-      code: 'EST-2026-0148',
+      code: '148',
       fullName: 'Valeria Mendoza Rojas',
       course: '4.º Secundaria B',
+      managementYear: 2026,
       qrPayload: 'AQB1.test_0148',
+      guardianName: 'Ana Rojas',
+      guardianPhone: '71234567',
     ),
     CredentialStudent(
       id: '2',
-      code: 'EST-2026-0109',
+      code: '109',
       fullName: 'Carlos Martínez Silva',
       course: '4.º Secundaria A',
+      managementYear: 2026,
       qrPayload: 'AQB1.test_0109',
+      guardianName: 'María Silva',
+      guardianPhone: '72345678',
     ),
     CredentialStudent(
       id: '3',
-      code: 'EST-2026-0201',
+      code: '201',
       fullName: 'Ana Lucía Torres',
       course: '5.º Secundaria C',
+      managementYear: 2026,
       qrPayload: 'AQB1.test_0201',
+      guardianName: 'Luis Torres',
+      guardianPhone: '73456789',
     ),
   ];
 }

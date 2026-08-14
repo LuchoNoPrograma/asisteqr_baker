@@ -18,12 +18,19 @@ void main() {
     final students = await repository.getStudents();
 
     expect(adapter.requests, 1);
-    expect(students, hasLength(1));
-    expect(students.single.fullName, 'VALERIA MENDOZA ROJAS');
-    expect(students.single.code, 'EST-2026-0001');
-    expect(students.single.course, '4.º Secundaria B');
-    expect(students.single.qrPayload, startsWith('AQB1.v2_'));
-    expect(students.single.photoSource, 'data:image/png;base64,cGhvdG8=');
+    expect(students, hasLength(2));
+    expect(students.first.fullName, 'VALERIA MENDOZA ROJAS');
+    expect(students.first.code, '1');
+    expect(students.first.course, '4.º Secundaria B');
+    expect(students.first.managementYear, 2026);
+    expect(students.first.guardianName, 'ANA ROJAS');
+    expect(students.first.guardianPhone, '71234567');
+    expect(students.first.qrPayload, startsWith('AQB1.v2_'));
+    expect(students.first.photoSource, 'data:image/png;base64,cGhvdG8=');
+    expect(students.last.code, '27');
+    expect(students.last.fullName, 'CARLOS QUISPE FLORES');
+    expect(students.last.guardianName, 'MARTA FLORES');
+    expect(students.last.qrPayload, isNot(students.first.qrPayload));
   });
 }
 
@@ -58,6 +65,8 @@ class _CredentialApiAdapter implements HttpClientAdapter {
             'apellidos': 'MENDOZA ROJAS',
             'nombreCompleto': 'VALERIA MENDOZA ROJAS',
             'estado': 'ACTIVO',
+            'nombreTutor': 'ANA ROJAS',
+            'telefonoTutor': '71234567',
             'fotografiaUrl': 'data:image/png;base64,cGhvdG8=',
             'curso': {
               'id': '30000000-0000-4000-8000-000000000001',
@@ -66,6 +75,24 @@ class _CredentialApiAdapter implements HttpClientAdapter {
             },
           },
           'tokenQr': 'AQB1.v2_test-token',
+        },
+        {
+          'estudiante': {
+            'id': '20000000-0000-4000-8000-000000000027',
+            'codigoEstudiante': 27,
+            'nombres': 'CARLOS',
+            'apellidos': 'QUISPE FLORES',
+            'nombreCompleto': 'CARLOS QUISPE FLORES',
+            'estado': 'ACTIVO',
+            'nombreTutor': 'MARTA FLORES',
+            'telefonoTutor': '76543210',
+            'curso': {
+              'id': '30000000-0000-4000-8000-000000000002',
+              'nombre': '5.º Secundaria A',
+              'gestion': 2026,
+            },
+          },
+          'tokenQr': 'AQB1.v2_another-student-token',
         },
       ]),
       200,

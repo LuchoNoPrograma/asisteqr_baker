@@ -25,9 +25,17 @@ class ApiCredentialRepository implements CredentialRepository {
           : courseValue?.toString();
       final rawCode = student['codigoEstudiante'] ?? student['codigo'];
       final managementYear = (courseJson?['gestion'] as num?)?.toInt();
-      final code = rawCode is num
-          ? 'EST-${managementYear ?? DateTime.now().year}-${rawCode.toInt().toString().padLeft(4, '0')}'
-          : rawCode?.toString() ?? 'Sin código';
+      final code = rawCode?.toString().trim();
+      if (code == null || code.isEmpty) {
+        throw const FormatException(
+          'La API no devolvió el código del estudiante.',
+        );
+      }
+      if (managementYear == null) {
+        throw const FormatException(
+          'La API no devolvió la gestión de la credencial.',
+        );
+      }
       final firstNames = student['nombres']?.toString() ?? '';
       final lastNames = student['apellidos']?.toString() ?? '';
       final fullName =
@@ -44,7 +52,10 @@ class ApiCredentialRepository implements CredentialRepository {
         code: code,
         fullName: fullName,
         course: course ?? 'Sin curso',
+        managementYear: managementYear,
         qrPayload: qrPayload,
+        guardianName: student['nombreTutor']?.toString(),
+        guardianPhone: student['telefonoTutor']?.toString(),
         photoSource: student['fotografiaUrl']?.toString(),
         active: student['estado']?.toString() != 'INACTIVO',
       );

@@ -1,12 +1,16 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:asisteqr_baker/app/providers.dart';
 import 'package:asisteqr_baker/app/theme/app_colors.dart';
 import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
 import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
 import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
-import 'package:asisteqr_baker/features/credentials/data/credential_pdf_service.dart';
 import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
+import 'package:asisteqr_baker/features/credentials/presentation/credentials_view_model.dart';
 import 'package:file_saver/file_saver.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -22,22 +26,19 @@ class CredentialsPage extends ConsumerStatefulWidget {
 
 class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   final _searchController = TextEditingController();
-  final _pdfService = CredentialPdfService();
-  List<CredentialStudent>? _students;
-  final Set<String> _selectedIds = {};
-  String? _course;
-  String _query = '';
-  CredentialPrintMode _printMode = CredentialPrintMode.doubleSided;
-  String? _previewStudentId;
   bool _showBack = false;
-  bool _exporting = false;
-  String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  CredentialsViewModel get _model => ref.read(credentialsViewModelProvider);
+  List<CredentialStudent> get _filtered => _model.filtered;
+  List<CredentialStudent> get _selected => _model.selected;
+  List<String> get _courses => _model.courses;
+  CredentialStudent? get _previewStudent => _model.previewStudent;
+  Set<String> get _selectedIds => _model.selectedIds;
+  String? get _course => _model.course;
+  CredentialPrintMode get _printMode => _model.printMode;
+  bool get _exporting => _model.exporting;
+  String? get _error => _model.error;
+  CredentialsLoadStatus get _loadStatus => _model.loadStatus;
 
   @override
   void dispose() {
@@ -45,82 +46,14 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    try {
-      final students = await ref
-          .read(credentialRepositoryProvider)
-          .getStudents();
-      if (!mounted) return;
-      setState(() {
-        _students = students;
-        _error = null;
-      });
-    } on Object {
-      if (!mounted) return;
-      setState(() => _error = 'No pudimos cargar los estudiantes.');
-    }
-  }
+  Future<void> _load() => _model.load();
 
-  List<CredentialStudent> get _filtered {
-    final query = _query.trim().toLowerCase();
-    return (_students ?? []).where((student) {
-      final matchesCourse = _course == null || student.course == _course;
-      final matchesQuery =
-          query.isEmpty ||
-          student.fullName.toLowerCase().contains(query) ||
-          student.code.toLowerCase().contains(query);
-      return matchesCourse && matchesQuery;
-    }).toList();
-  }
+  void _toggleVisible(bool? selected) => _model.toggleVisible(selected == true);
 
-  List<CredentialStudent> get _selected => (_students ?? [])
-      .where((student) => _selectedIds.contains(student.id))
-      .toList();
+  void _toggleStudent(CredentialStudent student) =>
+      _model.toggleStudent(student);
 
-  List<String> get _courses {
-    final values = (_students ?? [])
-        .map((student) => student.course)
-        .toSet()
-        .toList();
-    values.sort();
-    return values;
-  }
-
-  CredentialStudent? get _previewStudent {
-    for (final student in _students ?? <CredentialStudent>[]) {
-      if (student.id == _previewStudentId) return student;
-    }
-    final selected = _selected;
-    if (selected.isNotEmpty) return selected.first;
-    final filtered = _filtered;
-    return filtered.isEmpty ? null : filtered.first;
-  }
-
-  void _toggleVisible(bool? selected) {
-    setState(() {
-      if (selected == true) {
-        _selectedIds.addAll(_filtered.map((student) => student.id));
-        if (_filtered.isNotEmpty) {
-          _previewStudentId ??= _filtered.first.id;
-        }
-      } else {
-        _selectedIds.removeAll(_filtered.map((student) => student.id));
-      }
-    });
-  }
-
-  void _toggleStudent(CredentialStudent student) {
-    setState(() {
-      _previewStudentId = student.id;
-      if (_selectedIds.contains(student.id)) {
-        _selectedIds.remove(student.id);
-      } else {
-        _selectedIds.add(student.id);
-      }
-    });
-  }
-
-  void _clearSelection() => setState(_selectedIds.clear);
+  void _clearSelection() => _model.clearSelection();
 
   Future<void> _export({required bool print}) async {
     final selected = _selected;
@@ -132,12 +65,8 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       );
       return;
     }
-    setState(() => _exporting = true);
     try {
-      final bytes = await _pdfService.build(
-        students: selected,
-        mode: _printMode,
-      );
+      final bytes = await _model.buildSelectedPdf();
       if (print) {
         await Printing.layoutPdf(
           name: 'Credenciales AsisteQR Baker',
@@ -151,35 +80,112 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
           );
         }
       } else {
-        await FileSaver.instance.saveFile(
-          name: 'credenciales_asisteqr_${selected.length}',
-          bytes: bytes,
-          fileExtension: 'pdf',
-          mimeType: MimeType.pdf,
+        final fileName = 'credenciales_asisteqr_${selected.length}.pdf';
+        final savedPath = await _savePdf(bytes, fileName);
+        if (savedPath == null || !mounted) return;
+        final action = await showSavedFileDialog(
+          context,
+          fileName: fileName,
+          location: _savedLocationLabel(savedPath),
+          canReveal: _canRevealSavedFile(savedPath),
         );
-        if (mounted) {
-          await showAppSuccess(
-            context,
-            'El PDF contiene ${selected.length} credenciales.',
-            title: 'PDF descargado',
-          );
+        if (!mounted) return;
+        switch (action) {
+          case SavedFileAction.preview:
+            await _previewSavedPdf(bytes, fileName);
+          case SavedFileAction.reveal:
+            await _revealSavedFile(savedPath);
+          case SavedFileAction.close:
+            break;
         }
       }
     } on Object {
       if (mounted) {
         await showAppErrorDialog(
           context,
-          title: 'No se pudo generar el PDF',
-          message: 'Revisa la conexión e intenta nuevamente.',
+          title: 'No se pudo guardar el PDF',
+          message:
+              'Revisa la conexión, los permisos de la ubicación e intenta nuevamente.',
         );
       }
-    } finally {
-      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<String?> _savePdf(Uint8List bytes, String fileName) async {
+    if (Platform.isLinux || Platform.isWindows) {
+      const pdfType = XTypeGroup(label: 'Documento PDF', extensions: ['pdf']);
+      final location = await getSaveLocation(
+        suggestedName: fileName,
+        acceptedTypeGroups: const [pdfType],
+        confirmButtonText: 'Guardar',
+      );
+      if (location == null) return null;
+      final file = XFile.fromData(
+        bytes,
+        mimeType: 'application/pdf',
+        name: fileName,
+      );
+      await file.saveTo(location.path);
+      return location.path;
+    }
+
+    return FileSaver.instance.saveAs(
+      name: fileName.substring(0, fileName.length - 4),
+      bytes: bytes,
+      fileExtension: 'pdf',
+      mimeType: MimeType.pdf,
+    );
+  }
+
+  String _savedLocationLabel(String path) {
+    if (path.startsWith('/') || RegExp(r'^[A-Za-z]:\\').hasMatch(path)) {
+      return path;
+    }
+    return 'Ubicación elegida en el dispositivo';
+  }
+
+  bool _canRevealSavedFile(String path) =>
+      (Platform.isLinux || Platform.isWindows) && File(path).isAbsolute;
+
+  Future<void> _previewSavedPdf(Uint8List bytes, String fileName) async {
+    try {
+      await Printing.layoutPdf(name: fileName, onLayout: (_) async => bytes);
+    } on Object {
+      if (!mounted) return;
+      await showAppErrorDialog(
+        context,
+        title: 'El PDF ya está guardado',
+        message: 'No se pudo abrir la vista previa en este dispositivo.',
+      );
+    }
+  }
+
+  Future<void> _revealSavedFile(String path) async {
+    try {
+      if (Platform.isLinux) {
+        await Process.start('xdg-open', [
+          File(path).parent.path,
+        ], mode: ProcessStartMode.detached);
+        return;
+      }
+      if (Platform.isWindows) {
+        await Process.start('explorer.exe', [
+          '/select,$path',
+        ], mode: ProcessStartMode.detached);
+      }
+    } on Object {
+      if (!mounted) return;
+      await showAppErrorDialog(
+        context,
+        title: 'El PDF ya está guardado',
+        message: 'No se pudo abrir la carpeta. Ubicación: $path',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(credentialsViewModelProvider);
     return AdaptiveShell(
       location: '/credenciales',
       title: 'Credenciales',
@@ -319,7 +325,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
         final wide = constraints.maxWidth >= 500;
         final search = TextField(
           controller: _searchController,
-          onChanged: (value) => setState(() => _query = value),
+          onChanged: _model.setQuery,
           decoration: const InputDecoration(
             hintText: 'Buscar por nombre o código',
             prefixIcon: Icon(LucideIcons.search, size: 18),
@@ -342,7 +348,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
             for (final value in _courses)
               DropdownMenuItem(value: value, child: Text(value)),
           ],
-          onChanged: (value) => setState(() => _course = value),
+          onChanged: _model.setCourse,
         );
         if (!wide) {
           return Column(children: [search, const SizedBox(height: 10), course]);
@@ -359,14 +365,14 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   );
 
   Widget _studentPanel({bool showClearSelection = true}) {
-    if (_error != null) {
+    if (_loadStatus == CredentialsLoadStatus.failure) {
       return _PanelMessage(
         icon: LucideIcons.cloudAlert,
-        message: _error!,
+        message: _error ?? 'No pudimos cargar los estudiantes.',
         action: TextButton(onPressed: _load, child: const Text('Reintentar')),
       );
     }
-    if (_students == null) {
+    if (_loadStatus == CredentialsLoadStatus.loading) {
       return const _PanelMessage(
         icon: LucideIcons.loaderCircle,
         message: 'Cargando estudiantes…',
@@ -647,21 +653,25 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
                   ),
               ],
               onChanged: (value) {
-                if (value != null) setState(() => _printMode = value);
+                if (value != null) _model.setPrintMode(value);
               },
             ),
             const SizedBox(height: 10),
-            const _PrintFact(
+            _PrintFact(
               icon: LucideIcons.files,
-              text: '8 credenciales por hoja A4',
+              text: _printMode == CredentialPrintMode.frontAndBack
+                  ? 'Hasta 4 credenciales completas por hoja A4'
+                  : 'Hasta 8 anversos por hoja A4',
             ),
             const _PrintFact(
               icon: LucideIcons.ruler,
               text: 'Tamaño estándar 85,6 × 54 mm',
             ),
-            const _PrintFact(
+            _PrintFact(
               icon: LucideIcons.rotateCcw,
-              text: 'Reversos alineados para doble cara',
+              text: _printMode == CredentialPrintMode.frontAndBack
+                  ? 'Anverso y reverso juntos, sin páginas separadas'
+                  : 'Todos los seleccionados en un único PDF',
             ),
             const SizedBox(height: 14),
             ElevatedButton.icon(
@@ -680,7 +690,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
               label: Text(
                 _exporting
                     ? 'Generando PDF'
-                    : 'Descargar ${_selectedIds.length} en PDF',
+                    : 'Guardar ${_selectedIds.length} en PDF',
               ),
             ),
             const SizedBox(height: 8),
@@ -725,124 +735,133 @@ class _CredentialFrontPreview extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
+            child: Stack(
               children: [
-                Container(
-                  height: 52,
-                  color: AppColors.navyDark,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: const Row(
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/branding/credential-front-template.png',
+                    fit: BoxFit.fill,
+                  ),
+                ),
+                const _CredentialTemplateHeader(
+                  subtitle: 'CREDENCIAL ESTUDIANTIL',
+                ),
+                Positioned(
+                  left: 55,
+                  top: 70,
+                  width: 134,
+                  height: 134,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF13A8DB),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1727C9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: AppPersonImage(
+                          source: student.photoSource,
+                          fallback: ColoredBox(
+                            color: AppColors.blueSoft,
+                            child: Center(
+                              child: Text(
+                                student.initials,
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 202,
+                  top: 62,
+                  right: 16,
+                  bottom: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SchoolMark(),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'UNIDAD EDUCATIVA ADVENTISTA BAKER',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                      Row(
+                        children: [
+                          const Text(
+                            'IDENTIDAD ESTUDIANTIL',
+                            style: TextStyle(
+                              color: Color(0xFF087AA7),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            color: AppColors.navyDark,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              'CÓD. ${student.code}',
+                              style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 11,
+                                fontSize: 8,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            Text(
-                              'CREDENCIAL ESTUDIANTIL',
-                              style: TextStyle(
-                                color: Color(0xFF9AD75A),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 9),
+                      _PreviewField(
+                        label: 'ESTUDIANTE',
+                        value: student.fullName,
+                      ),
+                      const SizedBox(height: 6),
+                      _PreviewField(label: 'CURSO', value: student.course),
+                      const Spacer(),
+                      const Divider(color: Color(0xFF13A8DB), height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _PreviewField(
+                              label: 'TUTOR/A',
+                              value: _credentialValue(student.guardianName),
+                              compact: true,
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: _PreviewField(
+                              label: 'CONTACTO',
+                              value: _credentialValue(student.guardianPhone),
+                              compact: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      const Text(
+                        'USO PERSONAL E INTRANSFERIBLE',
+                        style: TextStyle(
+                          color: AppColors.navy,
+                          fontSize: 7,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 9, 12, 7),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: AspectRatio(
-                            aspectRatio: .78,
-                            child: AppPersonImage(
-                              source: student.photoSource,
-                              fallback: ColoredBox(
-                                color: AppColors.blueSoft,
-                                child: Center(
-                                  child: Text(
-                                    student.initials,
-                                    style: const TextStyle(
-                                      color: AppColors.navy,
-                                      fontSize: 34,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const _PreviewBrand(),
-                              const Spacer(),
-                              _PreviewField(
-                                label: 'NOMBRE',
-                                value: student.fullName,
-                              ),
-                              const SizedBox(height: 4),
-                              _PreviewField(
-                                label: 'CURSO',
-                                value: student.course,
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: _PreviewField(
-                                      label: 'CÓDIGO',
-                                      value: student.code,
-                                    ),
-                                  ),
-                                  QrImageView(
-                                    data: student.qrPayload,
-                                    size: 45,
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Container(
-                  height: 25,
-                  color: AppColors.navyDark,
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'USO PERSONAL E INTRANSFERIBLE  ·  GESTIÓN 2026',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
                   ),
                 ),
               ],
@@ -881,95 +900,154 @@ class _CredentialBackPreview extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
+            child: Stack(
               children: [
-                Container(
-                  height: 46,
-                  color: AppColors.navyDark,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: const Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'CONTROL DE ASISTENCIA',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      _SchoolMark(compact: true),
-                    ],
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/branding/credential-back-template.png',
+                    fit: BoxFit.fill,
                   ),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
+                const _CredentialTemplateHeader(
+                  subtitle: 'CONTROL DE ASISTENCIA',
+                  subtitleTop: 20,
+                ),
+                Positioned(
+                  left: 34,
+                  top: 64,
+                  width: 144,
+                  height: 174,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: AppColors.navyDark, width: 2),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
                       children: [
+                        const SizedBox(height: 3),
                         Container(
-                          padding: const EdgeInsets.all(5),
+                          width: 42,
+                          height: 8,
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.green),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: QrImageView(
-                            data: student.qrPayload,
-                            size: 112,
-                            padding: EdgeInsets.zero,
+                            color: AppColors.navyDark,
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
-                        const SizedBox(width: 13),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _PreviewField(
-                                label: 'ESTUDIANTE',
-                                value: student.fullName,
-                              ),
-                              const SizedBox(height: 8),
-                              _PreviewField(
-                                label: 'CURSO',
-                                value: student.course,
-                              ),
-                              const SizedBox(height: 8),
-                              _PreviewField(
-                                label: 'CÓDIGO',
-                                value: student.code,
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.all(7),
-                                color: AppColors.blueSoft,
-                                child: const Text(
-                                  'Presenta esta credencial al ingresar para registrar tu asistencia.',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    color: AppColors.navy,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: QrImageView(
+                              data: student.qrPayload,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          height: 26,
+                          color: AppColors.navyDark,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'ESCANEAR',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                Container(
-                  height: 25,
-                  color: AppColors.navyDark,
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'AsisteQR Baker  ·  Gestión 2026',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Positioned(
+                  left: 196,
+                  top: 66,
+                  right: 18,
+                  bottom: 22,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: student.active
+                                  ? AppColors.green
+                                  : AppColors.inkMuted,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'CREDENCIAL ${student.active ? 'ACTIVA' : 'INACTIVA'}',
+                            style: const TextStyle(
+                              color: AppColors.navy,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 11),
+                      const Text(
+                        'VALIDACIÓN DE INGRESO',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const _PreviewInstruction(
+                        number: '01',
+                        text: 'Presenta la credencial al ingresar.',
+                      ),
+                      const SizedBox(height: 6),
+                      const _PreviewInstruction(
+                        number: '02',
+                        text: 'Escanea el QR solo con AsisteQR Baker.',
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _PreviewField(
+                              label: 'VIGENCIA',
+                              value: 'Gestión ${student.managementYear}',
+                              compact: true,
+                            ),
+                          ),
+                          Container(
+                            color: const Color(0xFFE5F6FC),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 4,
+                            ),
+                            child: const Text(
+                              'QR PERSONAL',
+                              style: TextStyle(
+                                color: AppColors.navy,
+                                fontSize: 7,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      const Text(
+                        'En caso de extravío, entrégala en Administración.',
+                        maxLines: 2,
+                        style: TextStyle(
+                          color: AppColors.inkMuted,
+                          fontSize: 8,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -982,9 +1060,14 @@ class _CredentialBackPreview extends StatelessWidget {
 }
 
 class _PreviewField extends StatelessWidget {
-  const _PreviewField({required this.label, required this.value});
+  const _PreviewField({
+    required this.label,
+    required this.value,
+    this.compact = false,
+  });
   final String label;
   final String value;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1002,8 +1085,8 @@ class _PreviewField extends StatelessWidget {
         value,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 10,
+        style: TextStyle(
+          fontSize: compact ? 8 : 10,
           fontWeight: FontWeight.w800,
           height: 1.15,
         ),
@@ -1012,37 +1095,108 @@ class _PreviewField extends StatelessWidget {
   );
 }
 
-class _PreviewBrand extends StatelessWidget {
-  const _PreviewBrand();
+class _PreviewInstruction extends StatelessWidget {
+  const _PreviewInstruction({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
   @override
-  Widget build(BuildContext context) => const Row(
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      InstitutionMark(size: 18),
-      SizedBox(width: 5),
-      Text(
-        'Asiste',
-        style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w800),
+      Container(
+        width: 19,
+        height: 19,
+        color: AppColors.blueSoft,
+        alignment: Alignment.center,
+        child: Text(
+          number,
+          style: const TextStyle(
+            color: AppColors.navy,
+            fontSize: 7,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
-      Text(
-        'QR',
-        style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w800),
-      ),
-      Text(
-        ' Baker',
-        style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w800),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          text,
+          maxLines: 2,
+          style: const TextStyle(fontSize: 7.5, height: 1.15),
+        ),
       ),
     ],
   );
 }
 
-class _SchoolMark extends StatelessWidget {
-  const _SchoolMark({this.compact = false});
-  final bool compact;
+String _credentialValue(String? value) {
+  final normalized = value?.trim();
+  return normalized == null || normalized.isEmpty
+      ? 'No registrado'
+      : normalized;
+}
+
+class _CredentialTemplateHeader extends StatelessWidget {
+  const _CredentialTemplateHeader({
+    required this.subtitle,
+    this.subtitleTop = 14,
+  });
+
+  final String subtitle;
+  final double subtitleTop;
 
   @override
-  Widget build(BuildContext context) => InstitutionMark(
-    size: compact ? 28 : 34,
-    variant: InstitutionMarkVariant.white,
+  Widget build(BuildContext context) => Positioned(
+    left: 14,
+    top: 8,
+    right: 12,
+    height: 38,
+    child: Stack(
+      children: [
+        const Positioned(left: 0, top: 1, child: InstitutionMark(size: 31)),
+        const Positioned(
+          left: 38,
+          top: 4,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'UNIDAD EDUCATIVA',
+                style: TextStyle(
+                  color: Color(0xFF087AA7),
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'ADVENTISTA BAKER',
+                style: TextStyle(
+                  color: AppColors.navyDark,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 112,
+          right: 0,
+          top: subtitleTop,
+          child: Text(
+            subtitle,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
 

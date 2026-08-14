@@ -6,7 +6,10 @@ class CredentialStudent extends Equatable {
     required this.code,
     required this.fullName,
     required this.course,
+    required this.managementYear,
     required this.qrPayload,
+    this.guardianName,
+    this.guardianPhone,
     this.photoSource,
     this.active = true,
   });
@@ -15,7 +18,10 @@ class CredentialStudent extends Equatable {
   final String code;
   final String fullName;
   final String course;
+  final int managementYear;
   final String qrPayload;
+  final String? guardianName;
+  final String? guardianPhone;
   final String? photoSource;
   final bool active;
 
@@ -31,17 +37,20 @@ class CredentialStudent extends Equatable {
     code,
     fullName,
     course,
+    managementYear,
     qrPayload,
+    guardianName,
+    guardianPhone,
     photoSource,
     active,
   ];
 }
 
-enum CredentialPrintMode { doubleSided, frontOnly }
+enum CredentialPrintMode { frontAndBack, frontOnly }
 
 extension CredentialPrintModeLabel on CredentialPrintMode {
   String get label => switch (this) {
-    CredentialPrintMode.doubleSided => 'Anverso y reverso',
+    CredentialPrintMode.frontAndBack => 'Anverso y reverso juntos',
     CredentialPrintMode.frontOnly => 'Solo anverso',
   };
 }

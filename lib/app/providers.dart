@@ -6,7 +6,10 @@ import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
 import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
 import 'package:asisteqr_baker/features/auth/presentation/session_view_model.dart';
 import 'package:asisteqr_baker/features/credentials/data/api_credential_repository.dart';
+import 'package:asisteqr_baker/features/credentials/data/credential_pdf_service.dart';
+import 'package:asisteqr_baker/features/credentials/domain/credential_document_generator.dart';
 import 'package:asisteqr_baker/features/credentials/domain/credential_repository.dart';
+import 'package:asisteqr_baker/features/credentials/presentation/credentials_view_model.dart';
 import 'package:asisteqr_baker/features/courses/data/api_course_repository.dart';
 import 'package:asisteqr_baker/features/courses/domain/course_repository.dart';
 import 'package:asisteqr_baker/features/courses/presentation/courses_view_model.dart';
@@ -17,8 +20,8 @@ import 'package:asisteqr_baker/features/people/presentation/teachers_view_model.
 import 'package:asisteqr_baker/features/reports/data/api_report_repository.dart';
 import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
 import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
-import 'package:asisteqr_baker/features/schedules/data/api_teaching_schedule_repository.dart';
 import 'package:asisteqr_baker/features/schedules/data/api_teacher_schedule_editor_repository.dart';
+import 'package:asisteqr_baker/features/schedules/data/api_teaching_schedule_repository.dart';
 import 'package:asisteqr_baker/features/schedules/data/api_schedule_planner_repository.dart';
 import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_repository.dart';
 import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_repository.dart';
@@ -46,6 +49,16 @@ final attendanceRepositoryProvider = Provider<AttendanceRepository>(
 
 final credentialRepositoryProvider = Provider<CredentialRepository>(
   (ref) => ApiCredentialRepository(ref.watch(apiClientProvider)),
+);
+
+final credentialDocumentGeneratorProvider =
+    Provider<CredentialDocumentGenerator>((ref) => CredentialPdfService());
+
+final credentialsViewModelProvider = ChangeNotifierProvider.autoDispose(
+  (ref) => CredentialsViewModel(
+    ref.watch(credentialRepositoryProvider),
+    ref.watch(credentialDocumentGeneratorProvider),
+  )..load(),
 );
 
 final peopleRepositoryProvider = Provider<PeopleRepository>(
