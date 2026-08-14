@@ -16,6 +16,7 @@ class SchedulePlannerViewModel extends ChangeNotifier {
   final Set<String> removedBlockIds = {};
   bool loading = false;
   bool saving = false;
+  bool catalogSaving = false;
   bool dirty = false;
   String? error;
 
@@ -42,9 +43,6 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       )
       .fold(0, (total, item) => total + item.durationMinutes);
 
-  int remainingMinutes(AcademicAssignment assignment) =>
-      assignment.weeklyMinutes - scheduledMinutes(assignment);
-
   bool saveAssignment(
     AcademicAssignment assignment, {
     AcademicAssignment? current,
@@ -57,12 +55,6 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     );
     if (duplicate) {
       error = 'La materia ya está asignada a ese curso.';
-      notifyListeners();
-      return false;
-    }
-    final scheduled = current == null ? 0 : scheduledMinutes(current);
-    if (assignment.weeklyMinutes < scheduled) {
-      error = 'La carga semanal no puede ser menor a los bloques programados.';
       notifyListeners();
       return false;
     }
@@ -92,11 +84,53 @@ class SchedulePlannerViewModel extends ChangeNotifier {
         ),
       );
     }
+    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
     error = null;
     notifyListeners();
     return true;
   }
+
+  Future<bool> persistAssignment(
+    AcademicAssignment assignment, {
+    AcademicAssignment? current,
+  }) => _persistMutation(() => saveAssignment(assignment, current: current));
+
+  Future<bool> persistClass(
+    AcademicAssignment assignment,
+    PlannerBlockDraft draft, {
+    AcademicAssignment? currentAssignment,
+    PlannerScheduleBlock? currentBlock,
+  }) => _persistMutation(() {
+    if (currentBlock != null) {
+      if (!saveBlock(draft, current: currentBlock)) return false;
+      AcademicAssignment? refreshedCurrent;
+      if (currentAssignment != null) {
+        for (final item in assignments) {
+          final sameId =
+              currentAssignment.id != null && item.id == currentAssignment.id;
+          if (sameId || item.key == currentAssignment.key) {
+            refreshedCurrent = item;
+            break;
+          }
+        }
+      }
+      return saveAssignment(assignment, current: refreshedCurrent);
+    }
+    if (!saveAssignment(assignment, current: currentAssignment)) return false;
+    final savedAssignment = assignments.firstWhere(
+      (item) => item.key == assignment.key,
+    );
+    return saveBlock(
+      PlannerBlockDraft(
+        assignment: savedAssignment,
+        classroomId: draft.classroomId,
+        weekday: draft.weekday,
+        startMinutes: draft.startMinutes,
+        endMinutes: draft.endMinutes,
+      ),
+    );
+  });
 
   void removeAssignment(AcademicAssignment assignment) {
     if (assignment.id != null) removedAssignmentIds.add(assignment.id!);
@@ -124,6 +158,12 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> persistRemoveAssignment(AcademicAssignment assignment) =>
+      _persistMutation(() {
+        removeAssignment(assignment);
+        return true;
+      });
+
   bool saveBlock(PlannerBlockDraft draft, {PlannerScheduleBlock? current}) {
     final loaded = data;
     if (loaded == null || draft.endMinutes <= draft.startMinutes) return false;
@@ -137,20 +177,6 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       (item) => item.includesRange(draft.startMinutes, draft.endMinutes),
     )) {
       error = 'El bloque ocupa un recreo general.';
-      notifyListeners();
-      return false;
-    }
-    final scheduledWithoutCurrent =
-        scheduledMinutes(draft.assignment) -
-        (current != null &&
-                current.courseId == draft.assignment.courseId &&
-                current.subjectId == draft.assignment.subjectId &&
-                current.teacherId == draft.assignment.teacherId
-            ? current.durationMinutes
-            : 0);
-    if (scheduledWithoutCurrent + draft.endMinutes - draft.startMinutes >
-        draft.assignment.weeklyMinutes) {
-      error = 'El bloque supera la carga semanal de la asignación.';
       notifyListeners();
       return false;
     }
@@ -186,18 +212,31 @@ class SchedulePlannerViewModel extends ChangeNotifier {
               .toList();
     updatedBlocks.sort(_compareBlocks);
     blocks = List.unmodifiable(updatedBlocks);
+    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
     error = null;
     notifyListeners();
     return true;
   }
 
+  Future<bool> persistBlock(
+    PlannerBlockDraft draft, {
+    PlannerScheduleBlock? current,
+  }) => _persistMutation(() => saveBlock(draft, current: current));
+
   void removeBlock(PlannerScheduleBlock block) {
     if (block.id != null) removedBlockIds.add(block.id!);
     blocks = List.unmodifiable(blocks.where((item) => !identical(item, block)));
+    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
     notifyListeners();
   }
+
+  Future<bool> persistRemoveBlock(PlannerScheduleBlock block) =>
+      _persistMutation(() {
+        removeBlock(block);
+        return true;
+      });
 
   Future<bool> save() async {
     final loaded = data;
@@ -225,6 +264,47 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> _persistMutation(bool Function() mutate) async {
+    if (saving) {
+      error = 'Espere a que termine el cambio anterior.';
+      notifyListeners();
+      return false;
+    }
+    final snapshot = _PlannerDraftSnapshot(
+      assignments: assignments,
+      blocks: blocks,
+      removedAssignmentIds: Set.of(removedAssignmentIds),
+      removedBlockIds: Set.of(removedBlockIds),
+      dirty: dirty,
+    );
+    if (!mutate()) {
+      final mutationError = error;
+      _restoreSnapshot(snapshot);
+      error = mutationError;
+      notifyListeners();
+      return false;
+    }
+    if (await save()) return true;
+
+    final persistenceError = error;
+    _restoreSnapshot(snapshot);
+    error = persistenceError;
+    notifyListeners();
+    return false;
+  }
+
+  void _restoreSnapshot(_PlannerDraftSnapshot snapshot) {
+    assignments = snapshot.assignments;
+    blocks = snapshot.blocks;
+    removedAssignmentIds
+      ..clear()
+      ..addAll(snapshot.removedAssignmentIds);
+    removedBlockIds
+      ..clear()
+      ..addAll(snapshot.removedBlockIds);
+    dirty = snapshot.dirty;
+  }
+
   Future<bool> saveGeneralConfig(GeneralScheduleDraft draft) async {
     if (dirty) {
       error = 'Guarde los cambios de la matriz antes de cambiar la jornada.';
@@ -247,6 +327,112 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> saveSubject(
+    ScheduleSubjectDraft draft, {
+    ScheduleSubject? current,
+  }) async {
+    if (catalogSaving) return false;
+    catalogSaving = true;
+    error = null;
+    notifyListeners();
+    try {
+      final saved = await _repository.saveSubject(draft, id: current?.id);
+      final subjects = [
+        for (final item in data!.subjects)
+          if (item.id == saved.id) saved else item,
+        if (current == null) saved,
+      ]..sort((left, right) => left.name.compareTo(right.name));
+      data = data!.copyWith(subjects: List.unmodifiable(subjects));
+      return true;
+    } on TeachingScheduleException catch (exception) {
+      error = exception.message;
+      return false;
+    } finally {
+      catalogSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deactivateSubject(ScheduleSubject subject) async {
+    if (assignments.any((item) => item.subjectId == subject.id)) {
+      error = 'Retire primero las asignaciones académicas de esta materia.';
+      notifyListeners();
+      return false;
+    }
+    if (catalogSaving) return false;
+    catalogSaving = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _repository.deactivateSubject(subject.id);
+      data = data!.copyWith(
+        subjects: List.unmodifiable(
+          data!.subjects.where((item) => item.id != subject.id),
+        ),
+      );
+      return true;
+    } on TeachingScheduleException catch (exception) {
+      error = exception.message;
+      return false;
+    } finally {
+      catalogSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> saveClassroom(
+    ScheduleClassroomDraft draft, {
+    ScheduleClassroom? current,
+  }) async {
+    if (catalogSaving) return false;
+    catalogSaving = true;
+    error = null;
+    notifyListeners();
+    try {
+      final saved = await _repository.saveClassroom(draft, id: current?.id);
+      final classrooms = [
+        for (final item in data!.classrooms)
+          if (item.id == saved.id) saved else item,
+        if (current == null) saved,
+      ]..sort((left, right) => left.name.compareTo(right.name));
+      data = data!.copyWith(classrooms: List.unmodifiable(classrooms));
+      return true;
+    } on TeachingScheduleException catch (exception) {
+      error = exception.message;
+      return false;
+    } finally {
+      catalogSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deactivateClassroom(ScheduleClassroom classroom) async {
+    if (blocks.any((item) => item.classroomId == classroom.id)) {
+      error = 'Retire primero los bloques programados en esta aula.';
+      notifyListeners();
+      return false;
+    }
+    if (catalogSaving) return false;
+    catalogSaving = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _repository.deactivateClassroom(classroom.id);
+      data = data!.copyWith(
+        classrooms: List.unmodifiable(
+          data!.classrooms.where((item) => item.id != classroom.id),
+        ),
+      );
+      return true;
+    } on TeachingScheduleException catch (exception) {
+      error = exception.message;
+      return false;
+    } finally {
+      catalogSaving = false;
+      notifyListeners();
+    }
+  }
+
   String? takeError() {
     final value = error;
     error = null;
@@ -255,12 +441,22 @@ class SchedulePlannerViewModel extends ChangeNotifier {
 
   void _setLoaded(SchedulePlannerData loaded) {
     data = loaded;
-    assignments = List.unmodifiable(loaded.assignments);
     blocks = List.unmodifiable(loaded.blocks);
+    assignments = List.unmodifiable(loaded.assignments);
+    _synchronizeAutomaticWeeklyMinutes();
     removedAssignmentIds.clear();
     removedBlockIds.clear();
     dirty = false;
     error = null;
+  }
+
+  void _synchronizeAutomaticWeeklyMinutes() {
+    assignments = List.unmodifiable(
+      assignments.map((assignment) {
+        final total = scheduledMinutes(assignment);
+        return assignment.copyWith(weeklyMinutes: total == 0 ? 30 : total);
+      }),
+    );
   }
 
   static int _compareBlocks(
@@ -270,4 +466,20 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     final day = left.weekday.compareTo(right.weekday);
     return day != 0 ? day : left.startMinutes.compareTo(right.startMinutes);
   }
+}
+
+class _PlannerDraftSnapshot {
+  const _PlannerDraftSnapshot({
+    required this.assignments,
+    required this.blocks,
+    required this.removedAssignmentIds,
+    required this.removedBlockIds,
+    required this.dirty,
+  });
+
+  final List<AcademicAssignment> assignments;
+  final List<PlannerScheduleBlock> blocks;
+  final Set<String> removedAssignmentIds;
+  final Set<String> removedBlockIds;
+  final bool dirty;
 }

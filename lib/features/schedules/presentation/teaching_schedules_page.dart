@@ -22,6 +22,12 @@ extension on _PlannerPerspective {
     _PlannerPerspective.classroom => 'Aulas',
   };
 
+  String get singularLabel => switch (this) {
+    _PlannerPerspective.course => 'Curso',
+    _PlannerPerspective.teacher => 'Docente',
+    _PlannerPerspective.classroom => 'Aula',
+  };
+
   IconData get icon => switch (this) {
     _PlannerPerspective.course => LucideIcons.school,
     _PlannerPerspective.teacher => LucideIcons.presentation,
@@ -83,42 +89,41 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
     selectedResourceId = widget.initialResourceId;
   }
 
-  Future<void> _save() async {
-    final saved = await model.save();
+  Future<void> _editAssignment(AcademicAssignment current) async {
+    final data = model.data;
+    if (data == null) return;
+    if (data.subjects.isEmpty) {
+      await showAppErrorDialog(
+        context,
+        title: 'No hay materias disponibles',
+        message:
+            'Registra una materia desde Catálogos > Materias antes de crear la carga académica.',
+      );
+      return;
+    }
+    if (data.courses.isEmpty || data.teachers.isEmpty) {
+      await showAppErrorDialog(
+        context,
+        title: 'Faltan datos académicos',
+        message: data.courses.isEmpty
+            ? 'Registra al menos un curso antes de crear la carga académica.'
+            : 'Registra al menos un docente antes de crear la carga académica.',
+      );
+      return;
+    }
+    final result = await showDialog<AcademicAssignment>(
+      context: context,
+      builder: (context) => _AssignmentDialog(data: data, current: current),
+    );
+    if (result == null || !mounted) return;
+    final saved = await model.persistAssignment(result, current: current);
     if (!mounted) return;
     if (saved) {
-      showAppSuccess(context, 'Planificación guardada.');
+      showAppSuccess(context, 'Asignación actualizada.');
     } else {
       await showAppErrorDialog(
         context,
-        title: 'No se pudo guardar',
-        message: model.takeError() ?? 'No hay cambios pendientes.',
-      );
-    }
-  }
-
-  Future<void> _editAssignment([AcademicAssignment? current]) async {
-    final data = model.data;
-    if (data == null) return;
-    final result = await showDialog<AcademicAssignment>(
-      context: context,
-      builder: (context) => _AssignmentDialog(
-        data: data,
-        current: current,
-        initialCourseId: perspective == _PlannerPerspective.course
-            ? selectedResourceId
-            : null,
-        initialTeacherId: perspective == _PlannerPerspective.teacher
-            ? selectedResourceId
-            : null,
-      ),
-    );
-    if (result == null) return;
-    final saved = model.saveAssignment(result, current: current);
-    if (!saved && mounted) {
-      await showAppErrorDialog(
-        context,
-        title: 'No se pudo guardar la asignación',
+        title: 'No se pudo actualizar la asignación',
         message: model.takeError() ?? 'Revise los datos indicados.',
       );
     }
@@ -129,9 +134,7 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const AppDialogHeader(title: 'Retirar asignación'),
-        content: const Text(
-          'También se retirarán sus bloques de clase al guardar.',
-        ),
+        content: const Text('También se retirarán sus bloques de clase.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -144,64 +147,199 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
         ],
       ),
     );
-    if (confirmed == true) model.removeAssignment(assignment);
+    if (confirmed != true) return;
+    final removed = await model.persistRemoveAssignment(assignment);
+    if (!mounted) return;
+    if (removed) {
+      showAppSuccess(context, 'Asignación retirada.');
+    } else {
+      await showAppErrorDialog(
+        context,
+        title: 'No se pudo retirar la asignación',
+        message: model.takeError() ?? 'Intente nuevamente.',
+      );
+    }
   }
 
   Future<void> _editBlock({
     PlannerScheduleBlock? current,
+    AcademicAssignment? initialAssignment,
     required int weekday,
     required int startMinutes,
+    int? endMinutes,
   }) async {
     final data = model.data;
     if (data == null) return;
-    var available = _assignmentsForSelection(model.assignments);
-    if (available.isEmpty) {
-      final assignment = await showDialog<AcademicAssignment>(
-        context: context,
-        builder: (context) => _AssignmentDialog(
-          data: data,
-          initialCourseId: perspective == _PlannerPerspective.course
-              ? selectedResourceId
-              : null,
-          initialTeacherId: perspective == _PlannerPerspective.teacher
-              ? selectedResourceId
-              : null,
-        ),
+    if (data.subjects.isEmpty) {
+      await showAppErrorDialog(
+        context,
+        title: 'No hay materias disponibles',
+        message:
+            'Registra una materia desde Catálogos > Materias antes de programar una clase.',
       );
-      if (assignment == null) return;
-      if (!model.saveAssignment(assignment)) {
-        if (mounted) {
-          await showAppErrorDialog(
-            context,
-            title: 'No se pudo crear la asignación',
-            message: model.takeError() ?? 'Revise los datos indicados.',
-          );
-        }
-        return;
-      }
-      available = _assignmentsForSelection(model.assignments);
+      return;
     }
+    if (data.courses.isEmpty || data.teachers.isEmpty) {
+      await showAppErrorDialog(
+        context,
+        title: 'Faltan datos académicos',
+        message: data.courses.isEmpty
+            ? 'Registra al menos un curso antes de programar una clase.'
+            : 'Registra al menos un docente antes de programar una clase.',
+      );
+      return;
+    }
+    if (data.classrooms.isEmpty) {
+      await showAppErrorDialog(
+        context,
+        title: 'No hay aulas disponibles',
+        message:
+            'Registra un aula desde Catálogos > Aulas antes de programar una clase.',
+      );
+      return;
+    }
+    final fixedCourseId = perspective == _PlannerPerspective.course
+        ? selectedResourceId
+        : null;
+    final fixedTeacherId = perspective == _PlannerPerspective.teacher
+        ? selectedResourceId
+        : null;
     final fixedClassroomId = perspective == _PlannerPerspective.classroom
         ? selectedResourceId
         : null;
+    var preferredAssignment = initialAssignment;
+    if (preferredAssignment == null && current != null) {
+      for (final item in model.assignments) {
+        if (item.courseId == current.courseId &&
+            item.subjectId == current.subjectId &&
+            item.teacherId == current.teacherId) {
+          preferredAssignment = item;
+          break;
+        }
+      }
+    }
+    if (preferredAssignment == null) {
+      for (final item in model.assignments) {
+        if ((fixedCourseId == null || item.courseId == fixedCourseId) &&
+            (fixedTeacherId == null || item.teacherId == fixedTeacherId)) {
+          preferredAssignment = item;
+          break;
+        }
+      }
+    }
+    if (preferredAssignment == null) {
+      final seedCourseId = fixedCourseId ?? data.courses.first.id;
+      final seedSubjectId = data.subjects.first.id;
+      AcademicAssignment? storedSeed;
+      for (final item in model.assignments) {
+        if (item.courseId == seedCourseId && item.subjectId == seedSubjectId) {
+          storedSeed = item;
+          break;
+        }
+      }
+      preferredAssignment =
+          storedSeed?.copyWith(
+            teacherId: fixedTeacherId ?? storedSeed.teacherId,
+          ) ??
+          AcademicAssignment(
+            courseId: seedCourseId,
+            subjectId: seedSubjectId,
+            teacherId: fixedTeacherId ?? data.teachers.first.id,
+            weeklyMinutes: 30,
+          );
+    }
+    final initialDialogAssignment = preferredAssignment;
+    final dialogAssignments = <AcademicAssignment>[
+      ...model.assignments,
+      if (!model.assignments.any(
+        (item) => item.key == initialDialogAssignment.key,
+      ))
+        initialDialogAssignment,
+    ];
     final draft = await showDialog<PlannerBlockDraft>(
       context: context,
       builder: (context) => _BlockDialog(
         data: data,
-        assignments: available,
+        assignments: dialogAssignments,
+        initialAssignment: initialDialogAssignment,
         current: current,
         initialWeekday: weekday,
         initialStartMinutes: startMinutes,
+        initialEndMinutes: endMinutes,
+        fixedCourseId: fixedCourseId,
+        fixedTeacherId: fixedTeacherId,
         fixedClassroomId: fixedClassroomId,
       ),
     );
     if (draft == null) return;
-    final saved = model.saveBlock(draft, current: current);
-    if (!saved && mounted) {
+    AcademicAssignment? existingAssignment;
+    for (final item in model.assignments) {
+      if (item.courseId == draft.assignment.courseId &&
+          item.subjectId == draft.assignment.subjectId) {
+        existingAssignment = item;
+        break;
+      }
+    }
+    final assignmentChanged =
+        existingAssignment == null ||
+        existingAssignment.teacherId != draft.assignment.teacherId;
+    final saved = assignmentChanged
+        ? await model.persistClass(
+            draft.assignment,
+            draft,
+            currentAssignment: existingAssignment,
+            currentBlock: current,
+          )
+        : await model.persistBlock(draft, current: current);
+    if (!mounted) return;
+    if (saved) {
+      showAppSuccess(
+        context,
+        current == null ? 'Clase programada.' : 'Clase actualizada.',
+      );
+    } else {
       await showAppErrorDialog(
         context,
-        title: 'No se puede ubicar la clase',
+        title: current == null
+            ? 'No se pudo programar la clase'
+            : 'No se pudo actualizar la clase',
         message: model.takeError() ?? 'Revise el rango seleccionado.',
+      );
+    }
+  }
+
+  Future<void> _removeBlock(PlannerScheduleBlock block) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const AppDialogHeader(title: 'Retirar clase'),
+        content: Text(
+          'Se retirará la clase del ${weekdayLabels[block.weekday]?.toLowerCase()} '
+          'de ${block.startTime} a ${block.endTime}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(LucideIcons.trash2, size: 17),
+            label: const Text('Retirar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final removed = await model.persistRemoveBlock(block);
+    if (!mounted) return;
+    if (removed) {
+      showAppSuccess(context, 'Clase retirada.');
+    } else {
+      await showAppErrorDialog(
+        context,
+        title: 'No se pudo retirar la clase',
+        message: model.takeError() ?? 'Intente nuevamente.',
       );
     }
   }
@@ -235,7 +373,15 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
       source.where((item) => item.courseId == selectedResourceId).toList(),
     _PlannerPerspective.teacher =>
       source.where((item) => item.teacherId == selectedResourceId).toList(),
-    _PlannerPerspective.classroom => source,
+    _PlannerPerspective.classroom => source.where((assignment) {
+      return model.blocks.any(
+        (block) =>
+            block.classroomId == selectedResourceId &&
+            block.courseId == assignment.courseId &&
+            block.subjectId == assignment.subjectId &&
+            block.teacherId == assignment.teacherId,
+      );
+    }).toList(),
   };
 
   List<PlannerScheduleBlock> _blocksForSelection(
@@ -251,6 +397,11 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(schedulePlannerViewModelProvider);
+    final canManage = ref.watch(
+      sessionViewModelProvider.select(
+        (session) => session.user?.isAdministrator == true,
+      ),
+    );
     final data = state.data;
     if (data != null) {
       final ids = _resourceItems(data).map((item) => item.$1);
@@ -270,87 +421,127 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
                 final desktop = constraints.maxWidth >= 840;
                 final assignments = _assignmentsForSelection(state.assignments);
                 final blocks = _blocksForSelection(state.blocks);
+                final plannerCanManage = canManage && !state.saving;
                 return Column(
                   children: [
-                    _PlannerHeader(
-                      data: data,
-                      perspective: perspective,
-                      resourceItems: _resourceItems(data),
-                      selectedResourceId: selectedResourceId,
-                      shift: shift,
-                      dirty: state.dirty,
-                      saving: state.saving,
-                      desktop: desktop,
-                      onPerspectiveChanged: (value) => setState(() {
-                        perspective = value;
-                        selectedResourceId = null;
-                      }),
-                      onResourceChanged: (value) =>
-                          setState(() => selectedResourceId = value),
-                      onShiftChanged: (value) => setState(() => shift = value),
-                      onNewAssignment: _editAssignment,
-                      onConfigure: _configureGeneral,
-                      onSave: _save,
-                    ),
                     if (state.loading || state.saving)
                       const LinearProgressIndicator(minHeight: 2),
                     if (state.error != null)
                       _InlineError(message: state.error!),
                     Expanded(
-                      child: desktop
-                          ? Row(
-                              children: [
-                                SizedBox(
-                                  width: 276,
-                                  child: _AssignmentRail(
-                                    data: data,
-                                    model: state,
-                                    assignments: assignments,
-                                    onEdit: _editAssignment,
-                                    onRemove: _removeAssignment,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: _ScheduleMatrix(
+                      child: Column(
+                        children: [
+                          _PlannerHeader(
+                            data: data,
+                            perspective: perspective,
+                            resourceItems: _resourceItems(data),
+                            selectedResourceId: selectedResourceId,
+                            shift: shift,
+                            saving: state.saving,
+                            canManage: canManage,
+                            desktop: desktop,
+                            onPerspectiveChanged: (value) => setState(() {
+                              perspective = value;
+                              selectedResourceId = null;
+                            }),
+                            onResourceChanged: (value) =>
+                                setState(() => selectedResourceId = value),
+                            onShiftChanged: (value) =>
+                                setState(() => shift = value),
+                            onNewClass: () => _editBlock(
+                              weekday: mobileDay,
+                              startMinutes: math.max(
+                                data.config.startMinutes,
+                                shift.startMinutes,
+                              ),
+                            ),
+                            onConfigure: _configureGeneral,
+                          ),
+                          Expanded(
+                            child: desktop
+                                ? Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 276,
+                                        child: _AssignmentRail(
+                                          data: data,
+                                          model: state,
+                                          assignments: assignments,
+                                          canManage: plannerCanManage,
+                                          onEdit: _editAssignment,
+                                          onSchedule: (assignment) =>
+                                              _editBlock(
+                                                initialAssignment: assignment,
+                                                weekday: mobileDay,
+                                                startMinutes: math.max(
+                                                  data.config.startMinutes,
+                                                  shift.startMinutes,
+                                                ),
+                                              ),
+                                          onRemove: _removeAssignment,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: _ScheduleMatrix(
+                                          data: data,
+                                          perspective: perspective,
+                                          shift: shift,
+                                          blocks: blocks,
+                                          canManage: plannerCanManage,
+                                          onEmptyRange: (day, start, end) =>
+                                              _editBlock(
+                                                weekday: day,
+                                                startMinutes: start,
+                                                endMinutes: end,
+                                              ),
+                                          onEditBlock: (block) => _editBlock(
+                                            current: block,
+                                            weekday: block.weekday,
+                                            startMinutes: block.startMinutes,
+                                            endMinutes: block.endMinutes,
+                                          ),
+                                          onRemoveBlock: _removeBlock,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : _MobileSchedule(
                                     data: data,
                                     perspective: perspective,
                                     shift: shift,
+                                    selectedDay: mobileDay,
+                                    assignments: assignments,
                                     blocks: blocks,
-                                    onEmptyCell: (day, minutes) => _editBlock(
-                                      weekday: day,
-                                      startMinutes: minutes,
+                                    canManage: plannerCanManage,
+                                    onDayChanged: (value) =>
+                                        setState(() => mobileDay = value),
+                                    onAdd: () => _editBlock(
+                                      weekday: mobileDay,
+                                      startMinutes: shift.startMinutes,
                                     ),
-                                    onEditBlock: (block) => _editBlock(
+                                    onEdit: (block) => _editBlock(
                                       current: block,
                                       weekday: block.weekday,
                                       startMinutes: block.startMinutes,
+                                      endMinutes: block.endMinutes,
                                     ),
-                                    onRemoveBlock: state.removeBlock,
+                                    onRemove: _removeBlock,
+                                    scheduledMinutes: state.scheduledMinutes,
+                                    onScheduleAssignment: (assignment) =>
+                                        _editBlock(
+                                          initialAssignment: assignment,
+                                          weekday: mobileDay,
+                                          startMinutes: math.max(
+                                            data.config.startMinutes,
+                                            shift.startMinutes,
+                                          ),
+                                        ),
+                                    onEditAssignment: _editAssignment,
+                                    onRemoveAssignment: _removeAssignment,
                                   ),
-                                ),
-                              ],
-                            )
-                          : _MobileSchedule(
-                              data: data,
-                              perspective: perspective,
-                              shift: shift,
-                              selectedDay: mobileDay,
-                              assignments: assignments,
-                              blocks: blocks,
-                              onDayChanged: (value) =>
-                                  setState(() => mobileDay = value),
-                              onAdd: () => _editBlock(
-                                weekday: mobileDay,
-                                startMinutes: shift.startMinutes,
-                              ),
-                              onEdit: (block) => _editBlock(
-                                current: block,
-                                weekday: block.weekday,
-                                startMinutes: block.startMinutes,
-                              ),
-                              onRemove: state.removeBlock,
-                              scheduledMinutes: state.scheduledMinutes,
-                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 );
@@ -366,9 +557,7 @@ class _TeachingSchedulesPageState extends ConsumerState<TeachingSchedulesPage> {
         _PlannerPerspective.teacher =>
           data.teachers.map((item) => (item.id, item.fullName)).toList(),
         _PlannerPerspective.classroom =>
-          data.classrooms
-              .map((item) => (item.id, '${item.code} · ${item.name}'))
-              .toList(),
+          data.classrooms.map((item) => (item.id, item.name)).toList(),
       };
 }
 
@@ -379,15 +568,14 @@ class _PlannerHeader extends StatelessWidget {
     required this.resourceItems,
     required this.selectedResourceId,
     required this.shift,
-    required this.dirty,
     required this.saving,
+    required this.canManage,
     required this.desktop,
     required this.onPerspectiveChanged,
     required this.onResourceChanged,
     required this.onShiftChanged,
-    required this.onNewAssignment,
+    required this.onNewClass,
     required this.onConfigure,
-    required this.onSave,
   });
 
   final SchedulePlannerData data;
@@ -395,94 +583,95 @@ class _PlannerHeader extends StatelessWidget {
   final List<(String, String)> resourceItems;
   final String? selectedResourceId;
   final _PlannerShift shift;
-  final bool dirty;
   final bool saving;
+  final bool canManage;
   final bool desktop;
   final ValueChanged<_PlannerPerspective> onPerspectiveChanged;
   final ValueChanged<String?> onResourceChanged;
   final ValueChanged<_PlannerShift> onShiftChanged;
-  final VoidCallback onNewAssignment;
+  final VoidCallback onNewClass;
   final VoidCallback onConfigure;
-  final VoidCallback onSave;
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: AppColors.surface,
-    padding: EdgeInsets.fromLTRB(desktop ? 22 : 14, 14, desktop ? 22 : 14, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => desktop
+      ? _DesktopPlannerHeader(
+          data: data,
+          perspective: perspective,
+          resourceItems: resourceItems,
+          selectedResourceId: selectedResourceId,
+          shift: shift,
+          saving: saving,
+          canManage: canManage,
+          onPerspectiveChanged: onPerspectiveChanged,
+          onResourceChanged: onResourceChanged,
+          onShiftChanged: onShiftChanged,
+          onNewClass: onNewClass,
+          onConfigure: onConfigure,
+        )
+      : Container(
+          color: AppColors.surface,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  const Text(
-                    'Planificador de horarios',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${data.period.name} ${data.period.year} · '
-                    '${data.config.startTime}–${data.config.endTime} · '
-                    'intervalos de ${data.config.intervalMinutes} min',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.inkMuted,
-                      fontSize: 12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Planificador',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          '${data.period.name} ${data.period.year}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.inkMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  if (canManage) ...[
+                    IconButton(
+                      tooltip: 'Configuración general',
+                      onPressed: saving ? null : onConfigure,
+                      icon: const Icon(LucideIcons.settings2, size: 19),
+                    ),
+                  ],
                 ],
               ),
-            ),
-            IconButton(
-              tooltip: 'Configuración general',
-              onPressed: saving ? null : onConfigure,
-              icon: const Icon(LucideIcons.settings2, size: 19),
-            ),
-            const SizedBox(width: 4),
-            FilledButton.icon(
-              onPressed: dirty && !saving ? onSave : null,
-              icon: const Icon(LucideIcons.save, size: 17),
-              label: Text(desktop ? 'Guardar cambios' : 'Guardar'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SegmentedButton<_PlannerPerspective>(
-              showSelectedIcon: false,
-              segments: _PlannerPerspective.values
-                  .map(
-                    (item) => ButtonSegment(
-                      value: item,
-                      icon: Icon(item.icon, size: 16),
-                      label: Text(item.label),
-                    ),
-                  )
-                  .toList(),
-              selected: {perspective},
-              onSelectionChanged: (value) => onPerspectiveChanged(value.first),
-            ),
-            SizedBox(
-              width: desktop
-                  ? 270
-                  : math.min(330, MediaQuery.sizeOf(context).width - 28),
-              child: DropdownButtonFormField<String>(
+              const SizedBox(height: 8),
+              DropdownButtonFormField<_PlannerPerspective>(
+                initialValue: perspective,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Vista'),
+                items: _PlannerPerspective.values
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) onPerspectiveChanged(value);
+                },
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
                 key: ValueKey('$perspective-$selectedResourceId'),
                 initialValue: selectedResourceId,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: perspective.label.substring(
-                    0,
-                    perspective.label.length - 1,
-                  ),
+                  labelText: perspective.singularLabel,
                 ),
                 items: resourceItems
                     .map(
@@ -494,36 +683,232 @@ class _PlannerHeader extends StatelessWidget {
                     .toList(),
                 onChanged: onResourceChanged,
               ),
-            ),
-            SegmentedButton<_PlannerShift>(
-              showSelectedIcon: false,
-              segments: _PlannerShift.values
-                  .map(
-                    (item) => ButtonSegment(
-                      value: item,
-                      label: Text(
-                        desktop
-                            ? item.label
-                            : item.name == 'morning'
-                            ? 'Mañana'
-                            : 'Tarde',
-                      ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<_PlannerShift>(
+                      initialValue: shift,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Turno'),
+                      items: _PlannerShift.values
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(
+                                item == _PlannerShift.morning
+                                    ? 'Mañana'
+                                    : 'Tarde',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) onShiftChanged(value);
+                      },
                     ),
-                  )
-                  .toList(),
-              selected: {shift},
-              onSelectionChanged: (value) => onShiftChanged(value.first),
+                  ),
+                  if (canManage) ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: saving ? null : onNewClass,
+                      icon: const Icon(LucideIcons.calendarClock, size: 17),
+                      label: const Text('Clase'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+}
+
+class _DesktopPlannerHeader extends StatelessWidget {
+  const _DesktopPlannerHeader({
+    required this.data,
+    required this.perspective,
+    required this.resourceItems,
+    required this.selectedResourceId,
+    required this.shift,
+    required this.saving,
+    required this.canManage,
+    required this.onPerspectiveChanged,
+    required this.onResourceChanged,
+    required this.onShiftChanged,
+    required this.onNewClass,
+    required this.onConfigure,
+  });
+
+  final SchedulePlannerData data;
+  final _PlannerPerspective perspective;
+  final List<(String, String)> resourceItems;
+  final String? selectedResourceId;
+  final _PlannerShift shift;
+  final bool saving;
+  final bool canManage;
+  final ValueChanged<_PlannerPerspective> onPerspectiveChanged;
+  final ValueChanged<String?> onResourceChanged;
+  final ValueChanged<_PlannerShift> onShiftChanged;
+  final VoidCallback onNewClass;
+  final VoidCallback onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    const compactSegmentStyle = ButtonStyle(
+      visualDensity: VisualDensity.compact,
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+    );
+
+    final perspectiveSelector = SegmentedButton<_PlannerPerspective>(
+      showSelectedIcon: false,
+      style: compactSegmentStyle,
+      segments: _PlannerPerspective.values
+          .map(
+            (item) => ButtonSegment(
+              value: item,
+              icon: Icon(item.icon, size: 16),
+              label: Text(item.label),
             ),
-            OutlinedButton.icon(
-              onPressed: saving ? null : onNewAssignment,
-              icon: const Icon(LucideIcons.plus, size: 17),
-              label: const Text('Asignación'),
+          )
+          .toList(),
+      selected: {perspective},
+      onSelectionChanged: (value) => onPerspectiveChanged(value.first),
+    );
+    final resourceSelector = DropdownButtonFormField<String>(
+      key: ValueKey('$perspective-$selectedResourceId'),
+      initialValue: selectedResourceId,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: perspective.singularLabel),
+      selectedItemBuilder: (context) => resourceItems
+          .map(
+            (item) => Align(
+              alignment: Alignment.centerLeft,
+              child: Tooltip(
+                message: item.$2,
+                child: Text(
+                  item.$2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-          ],
-        ),
-      ],
-    ),
-  );
+          )
+          .toList(),
+      items: resourceItems
+          .map(
+            (item) => DropdownMenuItem(
+              value: item.$1,
+              child: Text(
+                item.$2,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: onResourceChanged,
+    );
+    final shiftSelector = SegmentedButton<_PlannerShift>(
+      showSelectedIcon: false,
+      style: compactSegmentStyle,
+      segments: _PlannerShift.values
+          .map((item) => ButtonSegment(value: item, label: Text(item.label)))
+          .toList(),
+      selected: {shift},
+      onSelectionChanged: (value) => onShiftChanged(value.first),
+    );
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      padding: const EdgeInsets.fromLTRB(22, 14, 22, 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final compact = constraints.maxWidth < 920 * textScale;
+          final assignmentAction = compact
+              ? IconButton.outlined(
+                  tooltip: 'Nueva clase',
+                  onPressed: saving ? null : onNewClass,
+                  icon: const Icon(LucideIcons.calendarClock, size: 18),
+                )
+              : OutlinedButton.icon(
+                  onPressed: saving ? null : onNewClass,
+                  icon: const Icon(LucideIcons.calendarClock, size: 17),
+                  label: const Text('Nueva clase'),
+                );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Planificador de horarios',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${data.period.name} ${data.period.year} · '
+                          '${data.config.startTime}–${data.config.endTime} · '
+                          'intervalos de ${data.config.intervalMinutes} min',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.inkMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (canManage) ...[
+                    IconButton.outlined(
+                      tooltip: 'Configuración general',
+                      onPressed: saving ? null : onConfigure,
+                      icon: const Icon(LucideIcons.settings2, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    assignmentAction,
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (compact) ...[
+                Row(
+                  children: [
+                    perspectiveSelector,
+                    const SizedBox(width: 12),
+                    Expanded(child: resourceSelector),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                shiftSelector,
+              ] else
+                Row(
+                  children: [
+                    perspectiveSelector,
+                    const SizedBox(width: 12),
+                    Expanded(child: resourceSelector),
+                    const SizedBox(width: 12),
+                    shiftSelector,
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _AssignmentRail extends StatelessWidget {
@@ -531,14 +916,18 @@ class _AssignmentRail extends StatelessWidget {
     required this.data,
     required this.model,
     required this.assignments,
+    required this.canManage,
     required this.onEdit,
+    required this.onSchedule,
     required this.onRemove,
   });
 
   final SchedulePlannerData data;
   final SchedulePlannerViewModel model;
   final List<AcademicAssignment> assignments;
+  final bool canManage;
   final ValueChanged<AcademicAssignment> onEdit;
+  final ValueChanged<AcademicAssignment> onSchedule;
   final ValueChanged<AcademicAssignment> onRemove;
 
   @override
@@ -546,8 +935,8 @@ class _AssignmentRail extends StatelessWidget {
     final sorted = [...assignments]
       ..sort(
         (left, right) => model
-            .remainingMinutes(right)
-            .compareTo(model.remainingMinutes(left)),
+            .scheduledMinutes(right)
+            .compareTo(model.scheduledMinutes(left)),
       );
     return Container(
       decoration: const BoxDecoration(
@@ -559,16 +948,18 @@ class _AssignmentRail extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 15, 12, 10),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
-                  child: Text(
-                    'Carga semanal',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                const Text(
+                  'Asignaciones académicas',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  '${assignments.where((item) => model.remainingMinutes(item) > 0).length} pendientes',
+                  assignments.length == 1
+                      ? '1 asignación registrada'
+                      : '${assignments.length} asignaciones registradas',
                   style: const TextStyle(
                     color: AppColors.inkMuted,
                     fontSize: 11,
@@ -591,7 +982,9 @@ class _AssignmentRail extends StatelessWidget {
                         data: data,
                         assignment: item,
                         scheduled: model.scheduledMinutes(item),
+                        canManage: canManage,
                         onEdit: () => onEdit(item),
+                        onSchedule: () => onSchedule(item),
                         onRemove: () => onRemove(item),
                       );
                     },
@@ -608,14 +1001,18 @@ class _AssignmentTile extends StatelessWidget {
     required this.data,
     required this.assignment,
     required this.scheduled,
+    required this.canManage,
     required this.onEdit,
+    required this.onSchedule,
     required this.onRemove,
   });
 
   final SchedulePlannerData data;
   final AcademicAssignment assignment;
   final int scheduled;
+  final bool canManage;
   final VoidCallback onEdit;
+  final VoidCallback onSchedule;
   final VoidCallback onRemove;
 
   @override
@@ -629,25 +1026,29 @@ class _AssignmentTile extends StatelessWidget {
     final teacher = data.teachers.firstWhere(
       (item) => item.id == assignment.teacherId,
     );
-    final progress = scheduled / assignment.weeklyMinutes;
-    final remaining = math.max(0, assignment.weeklyMinutes - scheduled);
-    return InkWell(
-      onTap: onEdit,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    subject.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subject.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
+              ),
+              if (canManage)
+                IconButton(
+                  tooltip: 'Programar clase',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onSchedule,
+                  icon: const Icon(LucideIcons.calendarClock, size: 17),
+                ),
+              if (canManage)
                 PopupMenuButton<String>(
                   tooltip: 'Acciones de la asignación',
                   padding: EdgeInsets.zero,
@@ -655,56 +1056,55 @@ class _AssignmentTile extends StatelessWidget {
                   onSelected: (value) =>
                       value == 'edit' ? onEdit() : onRemove(),
                   itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Editar')),
-                    PopupMenuItem(value: 'remove', child: Text('Retirar')),
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Editar asignación'),
+                    ),
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Retirar asignación'),
+                    ),
                   ],
                 ),
-              ],
+            ],
+          ),
+          Text(
+            course.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            teacher.fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppColors.inkMuted, fontSize: 11),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            scheduled == 0
+                ? 'Sin clases programadas'
+                : '${_durationLabel(scheduled)} semanales',
+            style: const TextStyle(
+              color: AppColors.inkMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
-            Text(
-              course.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
-            ),
-            Text(
-              teacher.fullName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.inkMuted, fontSize: 11),
-            ),
-            const SizedBox(height: 9),
-            LinearProgressIndicator(
-              value: progress.clamp(0, 1),
-              minHeight: 4,
-              color: remaining == 0 ? AppColors.green : AppColors.navy,
-              backgroundColor: AppColors.border,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              remaining == 0
-                  ? '${_durationLabel(scheduled)} completos'
-                  : '${_durationLabel(scheduled)} de ${_durationLabel(assignment.weeklyMinutes)} · faltan ${_durationLabel(remaining)}',
-              style: TextStyle(
-                color: remaining == 0 ? AppColors.green : AppColors.inkMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ScheduleMatrix extends StatelessWidget {
+class _ScheduleMatrix extends StatefulWidget {
   const _ScheduleMatrix({
     required this.data,
     required this.perspective,
     required this.shift,
     required this.blocks,
-    required this.onEmptyCell,
+    required this.canManage,
+    required this.onEmptyRange,
     required this.onEditBlock,
     required this.onRemoveBlock,
   });
@@ -718,100 +1118,345 @@ class _ScheduleMatrix extends StatelessWidget {
   final _PlannerPerspective perspective;
   final _PlannerShift shift;
   final List<PlannerScheduleBlock> blocks;
-  final void Function(int day, int minutes) onEmptyCell;
+  final bool canManage;
+  final void Function(int day, int startMinutes, int endMinutes) onEmptyRange;
   final ValueChanged<PlannerScheduleBlock> onEditBlock;
   final ValueChanged<PlannerScheduleBlock> onRemoveBlock;
 
   @override
+  State<_ScheduleMatrix> createState() => _ScheduleMatrixState();
+}
+
+class _ScheduleMatrixState extends State<_ScheduleMatrix> {
+  int? _selectionDay;
+  int? _selectionAnchorSlot;
+  int? _selectionExtentSlot;
+
+  int? _dayAt(double x, double dayWidth) {
+    if (x < _ScheduleMatrix.timeWidth ||
+        x >= _ScheduleMatrix.timeWidth + dayWidth * 5) {
+      return null;
+    }
+    return ((x - _ScheduleMatrix.timeWidth) / dayWidth).floor() + 1;
+  }
+
+  int? _slotAt(double y, int slots, {required bool clamp}) {
+    final bodyY = y - _ScheduleMatrix.headerHeight;
+    if (!clamp && (bodyY < 0 || bodyY >= slots * _ScheduleMatrix.rowHeight)) {
+      return null;
+    }
+    return (bodyY / _ScheduleMatrix.rowHeight).floor().clamp(0, slots - 1);
+  }
+
+  bool _slotIsAvailable(int day, int slot, int visibleStart) {
+    final interval = widget.data.config.intervalMinutes;
+    final start = visibleStart + slot * interval;
+    final end = start + interval;
+    return !widget.data.breaks.any((item) => item.includesRange(start, end)) &&
+        !widget.blocks.any(
+          (item) =>
+              item.weekday == day &&
+              start < item.endMinutes &&
+              end > item.startMinutes,
+        );
+  }
+
+  bool _rangeIsAvailable(
+    int day,
+    int anchorSlot,
+    int extentSlot,
+    int visibleStart,
+  ) {
+    final first = math.min(anchorSlot, extentSlot);
+    final last = math.max(anchorSlot, extentSlot);
+    for (var slot = first; slot <= last; slot += 1) {
+      if (!_slotIsAvailable(day, slot, visibleStart)) return false;
+    }
+    return true;
+  }
+
+  void _clearSelection() {
+    if (!mounted) return;
+    setState(() {
+      _selectionDay = null;
+      _selectionAnchorSlot = null;
+      _selectionExtentSlot = null;
+    });
+  }
+
+  void _startSelection(
+    Offset localPosition,
+    double dayWidth,
+    int slots,
+    int visibleStart,
+  ) {
+    if (_selectionAnchorSlot != null) return;
+    final day = _dayAt(localPosition.dx, dayWidth);
+    final slot = _slotAt(localPosition.dy, slots, clamp: false);
+    if (day == null ||
+        slot == null ||
+        !_slotIsAvailable(day, slot, visibleStart)) {
+      return;
+    }
+    setState(() {
+      _selectionDay = day;
+      _selectionAnchorSlot = slot;
+      _selectionExtentSlot = slot;
+    });
+  }
+
+  void _extendSelection(
+    Offset localPosition,
+    double dayWidth,
+    int slots,
+    int visibleStart,
+  ) {
+    final day = _dayAt(localPosition.dx, dayWidth);
+    final slot = _slotAt(localPosition.dy, slots, clamp: true);
+    final anchor = _selectionAnchorSlot;
+    if (day != _selectionDay || slot == null || anchor == null) return;
+    if (_rangeIsAvailable(day!, anchor, slot, visibleStart) &&
+        slot != _selectionExtentSlot) {
+      setState(() => _selectionExtentSlot = slot);
+    }
+  }
+
+  void _finishSelection(int visibleStart) {
+    final day = _selectionDay;
+    final anchor = _selectionAnchorSlot;
+    final extent = _selectionExtentSlot;
+    if (day == null || anchor == null || extent == null) {
+      _clearSelection();
+      return;
+    }
+    final interval = widget.data.config.intervalMinutes;
+    final startMinutes = visibleStart + math.min(anchor, extent) * interval;
+    final endMinutes = visibleStart + (math.max(anchor, extent) + 1) * interval;
+    _clearSelection();
+    widget.onEmptyRange(day, startMinutes, endMinutes);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final start = math.max(data.config.startMinutes, shift.startMinutes);
-    final end = math.min(data.config.endMinutes, shift.endMinutes);
-    final slots = (end - start) ~/ data.config.intervalMinutes;
+    final start = math.max(
+      widget.data.config.startMinutes,
+      widget.shift.startMinutes,
+    );
+    final end = math.min(
+      widget.data.config.endMinutes,
+      widget.shift.endMinutes,
+    );
+    final slots = (end - start) ~/ widget.data.config.intervalMinutes;
     return ColoredBox(
       color: AppColors.canvas,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final width = math.max(minWidth, constraints.maxWidth);
-          final dayWidth = (width - timeWidth) / 5;
+          final width = math.max(
+            _ScheduleMatrix.minWidth,
+            constraints.maxWidth,
+          );
+          final dayWidth = (width - _ScheduleMatrix.timeWidth) / 5;
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 16),
-              child: SizedBox(
-                width: width,
-                height: headerHeight + slots * rowHeight,
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        SizedBox(
-                          height: headerHeight,
-                          child: Row(
-                            children: [
-                              const SizedBox(width: timeWidth),
-                              for (var day = 1; day <= 5; day += 1)
-                                Container(
-                                  width: dayWidth,
-                                  alignment: Alignment.center,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.navy,
-                                    border: Border(
-                                      right: BorderSide(
-                                        color: AppColors.navyDark,
+              child: GestureDetector(
+                key: const ValueKey('schedule-matrix-grid'),
+                behavior: HitTestBehavior.opaque,
+                onTapUp: widget.canManage
+                    ? (details) {
+                        _startSelection(
+                          details.localPosition,
+                          dayWidth,
+                          slots,
+                          start,
+                        );
+                        _finishSelection(start);
+                      }
+                    : null,
+                onVerticalDragDown: widget.canManage
+                    ? (details) => _startSelection(
+                        details.localPosition,
+                        dayWidth,
+                        slots,
+                        start,
+                      )
+                    : null,
+                onVerticalDragStart: widget.canManage
+                    ? (details) {
+                        if (_selectionAnchorSlot == null) {
+                          _startSelection(
+                            details.localPosition,
+                            dayWidth,
+                            slots,
+                            start,
+                          );
+                        } else {
+                          _extendSelection(
+                            details.localPosition,
+                            dayWidth,
+                            slots,
+                            start,
+                          );
+                        }
+                      }
+                    : null,
+                onVerticalDragUpdate: widget.canManage
+                    ? (details) => _extendSelection(
+                        details.localPosition,
+                        dayWidth,
+                        slots,
+                        start,
+                      )
+                    : null,
+                onVerticalDragEnd: widget.canManage
+                    ? (_) => _finishSelection(start)
+                    : null,
+                onVerticalDragCancel: widget.canManage ? _clearSelection : null,
+                child: SizedBox(
+                  width: width,
+                  height:
+                      _ScheduleMatrix.headerHeight +
+                      slots * _ScheduleMatrix.rowHeight,
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          SizedBox(
+                            height: _ScheduleMatrix.headerHeight,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: _ScheduleMatrix.timeWidth,
+                                ),
+                                for (var day = 1; day <= 5; day += 1)
+                                  Container(
+                                    width: dayWidth,
+                                    alignment: Alignment.center,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.navy,
+                                      border: Border(
+                                        right: BorderSide(
+                                          color: AppColors.navyDark,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      weekdayLabels[day]!,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ),
-                                  child: Text(
-                                    weekdayLabels[day]!,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        for (var slot = 0; slot < slots; slot += 1)
-                          _MatrixRow(
-                            data: data,
-                            dayWidth: dayWidth,
-                            minutes: start + slot * data.config.intervalMinutes,
-                            onTap: onEmptyCell,
-                          ),
-                      ],
-                    ),
-                    for (final block in blocks.where(
-                      (item) =>
-                          item.startMinutes < end && item.endMinutes > start,
-                    ))
-                      Positioned(
-                        left: timeWidth + (block.weekday - 1) * dayWidth + 4,
-                        top:
-                            headerHeight +
-                            ((math.max(block.startMinutes, start) - start) /
-                                    data.config.intervalMinutes) *
-                                rowHeight +
-                            3,
-                        width: dayWidth - 8,
-                        height: math.max(
-                          35,
-                          ((math.min(block.endMinutes, end) -
-                                          math.max(block.startMinutes, start)) /
-                                      data.config.intervalMinutes) *
-                                  rowHeight -
-                              6,
-                        ),
-                        child: _BlockCard(
-                          data: data,
-                          perspective: perspective,
-                          block: block,
-                          onTap: () => onEditBlock(block),
-                          onRemove: () => onRemoveBlock(block),
-                        ),
+                          for (var slot = 0; slot < slots; slot += 1)
+                            _MatrixRow(
+                              data: widget.data,
+                              dayWidth: dayWidth,
+                              minutes:
+                                  start +
+                                  slot * widget.data.config.intervalMinutes,
+                            ),
+                        ],
                       ),
-                  ],
+                      if (_selectionDay != null &&
+                          _selectionAnchorSlot != null &&
+                          _selectionExtentSlot != null)
+                        Positioned(
+                          left:
+                              _ScheduleMatrix.timeWidth +
+                              (_selectionDay! - 1) * dayWidth +
+                              4,
+                          top:
+                              _ScheduleMatrix.headerHeight +
+                              math.min(
+                                    _selectionAnchorSlot!,
+                                    _selectionExtentSlot!,
+                                  ) *
+                                  _ScheduleMatrix.rowHeight +
+                              3,
+                          width: dayWidth - 8,
+                          height:
+                              (math.max(
+                                        _selectionAnchorSlot!,
+                                        _selectionExtentSlot!,
+                                      ) -
+                                      math.min(
+                                        _selectionAnchorSlot!,
+                                        _selectionExtentSlot!,
+                                      ) +
+                                      1) *
+                                  _ScheduleMatrix.rowHeight -
+                              6,
+                          child: IgnorePointer(
+                            child: Container(
+                              key: const ValueKey('schedule-range-preview'),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.blueSoft.withValues(alpha: .9),
+                                border: Border.all(
+                                  color: AppColors.navy,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                '${scheduleMinutesToTime(start + math.min(_selectionAnchorSlot!, _selectionExtentSlot!) * widget.data.config.intervalMinutes)}–'
+                                '${scheduleMinutesToTime(start + (math.max(_selectionAnchorSlot!, _selectionExtentSlot!) + 1) * widget.data.config.intervalMinutes)}',
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      for (final block in widget.blocks.where(
+                        (item) =>
+                            item.startMinutes < end && item.endMinutes > start,
+                      ))
+                        Positioned(
+                          left:
+                              _ScheduleMatrix.timeWidth +
+                              (block.weekday - 1) * dayWidth +
+                              4,
+                          top:
+                              _ScheduleMatrix.headerHeight +
+                              ((math.max(block.startMinutes, start) - start) /
+                                      widget.data.config.intervalMinutes) *
+                                  _ScheduleMatrix.rowHeight +
+                              3,
+                          width: dayWidth - 8,
+                          height: math.max(
+                            35,
+                            ((math.min(block.endMinutes, end) -
+                                            math.max(
+                                              block.startMinutes,
+                                              start,
+                                            )) /
+                                        widget.data.config.intervalMinutes) *
+                                    _ScheduleMatrix.rowHeight -
+                                6,
+                          ),
+                          child: _BlockCard(
+                            data: widget.data,
+                            perspective: widget.perspective,
+                            block: block,
+                            onTap: widget.canManage
+                                ? () => widget.onEditBlock(block)
+                                : null,
+                            onRemove: widget.canManage
+                                ? () => widget.onRemoveBlock(block)
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -827,13 +1472,11 @@ class _MatrixRow extends StatelessWidget {
     required this.data,
     required this.dayWidth,
     required this.minutes,
-    required this.onTap,
   });
 
   final SchedulePlannerData data;
   final double dayWidth;
   final int minutes;
-  final void Function(int day, int minutes) onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -864,13 +1507,14 @@ class _MatrixRow extends StatelessWidget {
           for (var day = 1; day <= 5; day += 1)
             SizedBox(
               width: dayWidth,
-              child: Material(
-                color: recess == null ? AppColors.surface : AppColors.amberSoft,
-                child: InkWell(
-                  mouseCursor: recess == null
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.forbidden,
-                  onTap: recess == null ? () => onTap(day, minutes) : null,
+              child: MouseRegion(
+                cursor: recess == null
+                    ? SystemMouseCursors.precise
+                    : SystemMouseCursors.forbidden,
+                child: ColoredBox(
+                  color: recess == null
+                      ? AppColors.surface
+                      : AppColors.amberSoft,
                   child: Container(
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
@@ -913,8 +1557,8 @@ class _BlockCard extends StatelessWidget {
   final SchedulePlannerData data;
   final _PlannerPerspective perspective;
   final PlannerScheduleBlock block;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
+  final VoidCallback? onTap;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -929,8 +1573,8 @@ class _BlockCard extends StatelessWidget {
       (item) => item.id == block.classroomId,
     );
     final detail = switch (perspective) {
-      _PlannerPerspective.course => '${teacher.fullName} · ${classroom.code}',
-      _PlannerPerspective.teacher => '${course.name} · ${classroom.code}',
+      _PlannerPerspective.course => '${teacher.fullName} · ${classroom.name}',
+      _PlannerPerspective.teacher => '${course.name} · ${classroom.name}',
       _PlannerPerspective.classroom => '${teacher.fullName} · ${course.name}',
     };
     return Material(
@@ -945,22 +1589,6 @@ class _BlockCard extends StatelessWidget {
         child: Row(
           children: [
             Container(width: 4, color: AppColors.navy),
-            if (perspective == _PlannerPerspective.classroom)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: CircleAvatar(
-                  radius: 11,
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: Colors.white,
-                  child: Text(
-                    _initials(teacher.fullName),
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(7, 4, 2, 3),
@@ -996,14 +1624,18 @@ class _BlockCard extends StatelessWidget {
                 ),
               ),
             ),
-            IconButton(
-              tooltip: 'Retirar bloque',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 26, height: 28),
-              onPressed: onRemove,
-              icon: const Icon(LucideIcons.x, size: 13),
-            ),
+            if (onRemove != null)
+              IconButton(
+                tooltip: 'Retirar bloque',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 26,
+                  height: 28,
+                ),
+                onPressed: onRemove,
+                icon: const Icon(LucideIcons.x, size: 13),
+              ),
           ],
         ),
       ),
@@ -1019,11 +1651,15 @@ class _MobileSchedule extends StatelessWidget {
     required this.selectedDay,
     required this.assignments,
     required this.blocks,
+    required this.canManage,
     required this.onDayChanged,
     required this.onAdd,
     required this.onEdit,
     required this.onRemove,
     required this.scheduledMinutes,
+    required this.onScheduleAssignment,
+    required this.onEditAssignment,
+    required this.onRemoveAssignment,
   });
 
   final SchedulePlannerData data;
@@ -1032,11 +1668,15 @@ class _MobileSchedule extends StatelessWidget {
   final int selectedDay;
   final List<AcademicAssignment> assignments;
   final List<PlannerScheduleBlock> blocks;
+  final bool canManage;
   final ValueChanged<int> onDayChanged;
   final VoidCallback onAdd;
   final ValueChanged<PlannerScheduleBlock> onEdit;
   final ValueChanged<PlannerScheduleBlock> onRemove;
   final int Function(AcademicAssignment) scheduledMinutes;
+  final ValueChanged<AcademicAssignment> onScheduleAssignment;
+  final ValueChanged<AcademicAssignment> onEditAssignment;
+  final ValueChanged<AcademicAssignment> onRemoveAssignment;
 
   @override
   Widget build(BuildContext context) {
@@ -1079,11 +1719,12 @@ class _MobileSchedule extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-              FilledButton.tonalIcon(
-                onPressed: assignments.isEmpty ? null : onAdd,
-                icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('Clase'),
-              ),
+              if (canManage)
+                FilledButton.tonalIcon(
+                  onPressed: onAdd,
+                  icon: const Icon(LucideIcons.plus, size: 16),
+                  label: const Text('Clase'),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1096,27 +1737,34 @@ class _MobileSchedule extends StatelessWidget {
                 child: _MobileBlockTile(
                   data: data,
                   block: block,
-                  onEdit: () => onEdit(block),
-                  onRemove: () => onRemove(block),
+                  onEdit: canManage ? () => onEdit(block) : null,
+                  onRemove: canManage ? () => onRemove(block) : null,
                 ),
               ),
             ),
           const SizedBox(height: 18),
           const Text(
-            'Carga semanal',
+            'Asignaciones académicas',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
-          ...assignments.map(
-            (assignment) => Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: _MobileAssignmentSummary(
-                data: data,
-                assignment: assignment,
-                scheduled: scheduledMinutes(assignment),
+          if (assignments.isEmpty)
+            const _EmptyAssignments()
+          else
+            ...assignments.map(
+              (assignment) => Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: _MobileAssignmentSummary(
+                  data: data,
+                  assignment: assignment,
+                  scheduled: scheduledMinutes(assignment),
+                  canManage: canManage,
+                  onSchedule: () => onScheduleAssignment(assignment),
+                  onEdit: () => onEditAssignment(assignment),
+                  onRemove: () => onRemoveAssignment(assignment),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1132,8 +1780,8 @@ class _MobileBlockTile extends StatelessWidget {
   });
   final SchedulePlannerData data;
   final PlannerScheduleBlock block;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
+  final VoidCallback? onEdit;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -1165,15 +1813,17 @@ class _MobileBlockTile extends StatelessWidget {
         ),
         title: Text(subject.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          '${course.name} · ${teacher.fullName}\n${classroom.code} · ${classroom.name}',
+          '${course.name} · ${teacher.fullName}\n${classroom.name}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: IconButton(
-          tooltip: 'Retirar bloque',
-          onPressed: onRemove,
-          icon: const Icon(LucideIcons.x, size: 17),
-        ),
+        trailing: onRemove == null
+            ? null
+            : IconButton(
+                tooltip: 'Retirar bloque',
+                onPressed: onRemove,
+                icon: const Icon(LucideIcons.x, size: 17),
+              ),
       ),
     );
   }
@@ -1184,15 +1834,29 @@ class _MobileAssignmentSummary extends StatelessWidget {
     required this.data,
     required this.assignment,
     required this.scheduled,
+    required this.canManage,
+    required this.onSchedule,
+    required this.onEdit,
+    required this.onRemove,
   });
   final SchedulePlannerData data;
   final AcademicAssignment assignment;
   final int scheduled;
+  final bool canManage;
+  final VoidCallback onSchedule;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final subject = data.subjects.firstWhere(
       (item) => item.id == assignment.subjectId,
+    );
+    final course = data.courses.firstWhere(
+      (item) => item.id == assignment.courseId,
+    );
+    final teacher = data.teachers.firstWhere(
+      (item) => item.id == assignment.teacherId,
     );
     return Container(
       padding: const EdgeInsets.all(10),
@@ -1203,123 +1867,320 @@ class _MobileAssignmentSummary extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: Text(subject.name, overflow: TextOverflow.ellipsis)),
-          Text(
-            '${_durationLabel(scheduled)} / ${_durationLabel(assignment.weeklyMinutes)}',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(subject.name, overflow: TextOverflow.ellipsis),
+                Text(
+                  '${course.name} · ${teacher.fullName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.inkMuted,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  scheduled == 0
+                      ? 'Sin clases programadas'
+                      : '${_durationLabel(scheduled)} semanales',
+                  style: const TextStyle(
+                    color: AppColors.inkMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
+          if (canManage)
+            IconButton(
+              tooltip: 'Programar clase',
+              visualDensity: VisualDensity.compact,
+              onPressed: onSchedule,
+              icon: const Icon(LucideIcons.calendarClock, size: 17),
+            ),
+          if (canManage)
+            PopupMenuButton<String>(
+              tooltip: 'Acciones de la asignación',
+              padding: EdgeInsets.zero,
+              iconSize: 18,
+              onSelected: (value) => value == 'edit' ? onEdit() : onRemove(),
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'edit', child: Text('Editar asignación')),
+                PopupMenuItem(
+                  value: 'remove',
+                  child: Text('Retirar asignación'),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 }
 
-class _AssignmentDialog extends StatefulWidget {
-  const _AssignmentDialog({
-    required this.data,
-    this.current,
-    this.initialCourseId,
-    this.initialTeacherId,
+class _PlannerDialogShell extends StatefulWidget {
+  const _PlannerDialogShell({
+    required this.title,
+    required this.primaryLabel,
+    required this.primaryIcon,
+    required this.onPrimary,
+    required this.child,
+    this.subtitle,
+    this.maxWidth = 560,
   });
+
+  final String title;
+  final String? subtitle;
+  final String primaryLabel;
+  final IconData primaryIcon;
+  final VoidCallback? onPrimary;
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  State<_PlannerDialogShell> createState() => _PlannerDialogShellState();
+}
+
+class _PlannerDialogShellState extends State<_PlannerDialogShell> {
+  final scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.width < 480;
+    final horizontalInset = compact ? 12.0 : 24.0;
+    final verticalInset = size.height < 640 ? 12.0 : 24.0;
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: horizontalInset,
+        vertical: verticalInset,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: widget.maxWidth,
+          maxHeight: math.max(320, size.height - verticalInset * 2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 16 : 22,
+                compact ? 14 : 18,
+                compact ? 12 : 16,
+                compact ? 12 : 16,
+              ),
+              child: AppDialogHeader(
+                title: widget.title,
+                subtitle: widget.subtitle,
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: Scrollbar(
+                controller: scrollController,
+                thumbVisibility: true,
+                thickness: compact ? 3 : 5,
+                radius: const Radius.circular(3),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(compact ? 16 : 22),
+                  child: widget.child,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 12 : 18,
+                vertical: 12,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) => constraints.maxWidth < 400
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: widget.onPrimary,
+                            icon: Icon(widget.primaryIcon, size: 16),
+                            label: Text(widget.primaryLabel),
+                          ),
+                          const SizedBox(height: 4),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: widget.onPrimary,
+                            icon: Icon(widget.primaryIcon, size: 16),
+                            label: Text(widget.primaryLabel),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogSectionHeader extends StatelessWidget {
+  const _DialogSectionHeader({
+    required this.icon,
+    required this.title,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 18, color: AppColors.navy),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      ),
+      ?trailing,
+    ],
+  );
+}
+
+class _ResponsiveFieldRow extends StatelessWidget {
+  const _ResponsiveFieldRow({
+    required this.children,
+    this.compactBreakpoint = 500,
+  });
+
+  final List<Widget> children;
+  final double compactBreakpoint;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < compactBreakpoint) {
+        return Column(
+          children: [
+            for (final (index, child) in children.indexed) ...[
+              child,
+              if (index < children.length - 1) const SizedBox(height: 12),
+            ],
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (index, child) in children.indexed) ...[
+            Expanded(child: child),
+            if (index < children.length - 1) const SizedBox(width: 12),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+class _AssignmentDialog extends StatefulWidget {
+  const _AssignmentDialog({required this.data, required this.current});
   final SchedulePlannerData data;
-  final AcademicAssignment? current;
-  final String? initialCourseId;
-  final String? initialTeacherId;
+  final AcademicAssignment current;
 
   @override
   State<_AssignmentDialog> createState() => _AssignmentDialogState();
 }
 
 class _AssignmentDialogState extends State<_AssignmentDialog> {
-  late String? courseId =
-      widget.current?.courseId ??
-      widget.initialCourseId ??
-      widget.data.courses.firstOrNull?.id;
-  late String? subjectId =
-      widget.current?.subjectId ?? widget.data.subjects.firstOrNull?.id;
-  late String? teacherId =
-      widget.current?.teacherId ??
-      widget.initialTeacherId ??
-      widget.data.teachers.firstOrNull?.id;
-  late int weeklyMinutes = widget.current?.weeklyMinutes ?? 120;
+  late String courseId = widget.current.courseId;
+  late String subjectId = widget.current.subjectId;
+  late String teacherId = widget.current.teacherId;
+
+  void _submit() => Navigator.pop(
+    context,
+    AcademicAssignment(
+      id: widget.current.id,
+      courseId: courseId,
+      subjectId: subjectId,
+      teacherId: teacherId,
+      weeklyMinutes: widget.current.weeklyMinutes,
+    ),
+  );
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: AppDialogHeader(
-      title: widget.current == null ? 'Nueva asignación' : 'Editar asignación',
-    ),
-    content: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _SelectField(
-              label: 'Curso',
-              value: courseId,
-              items: widget.data.courses
-                  .map((item) => (item.id, item.name))
-                  .toList(),
-              onChanged: (value) => setState(() => courseId = value),
-            ),
-            const SizedBox(height: 12),
-            _SelectField(
-              label: 'Materia',
-              value: subjectId,
-              items: widget.data.subjects
-                  .map((item) => (item.id, '${item.code} · ${item.name}'))
-                  .toList(),
-              onChanged: (value) => setState(() => subjectId = value),
-            ),
-            const SizedBox(height: 12),
-            _SelectField(
-              label: 'Docente',
-              value: teacherId,
-              items: widget.data.teachers
-                  .map((item) => (item.id, item.fullName))
-                  .toList(),
-              onChanged: (value) => setState(() => teacherId = value),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: weeklyMinutes,
-              decoration: const InputDecoration(labelText: 'Carga semanal'),
-              items: [
-                for (var minutes = 30; minutes <= 600; minutes += 30)
-                  DropdownMenuItem(
-                    value: minutes,
-                    child: Text(_durationLabel(minutes)),
-                  ),
-              ],
-              onChanged: (value) =>
-                  setState(() => weeklyMinutes = value ?? weeklyMinutes),
-            ),
-          ],
+  Widget build(BuildContext context) => _PlannerDialogShell(
+    title: 'Editar asignación',
+    subtitle: 'Los cambios se aplicarán a todas sus clases',
+    primaryLabel: 'Guardar asignación',
+    primaryIcon: LucideIcons.save,
+    onPrimary: _submit,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _DialogSectionHeader(
+          icon: LucideIcons.bookOpen,
+          title: 'Datos académicos',
         ),
-      ),
+        const SizedBox(height: 12),
+        _SelectField(
+          label: 'Curso',
+          value: courseId,
+          items: widget.data.courses
+              .map((item) => (item.id, item.name))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => courseId = value);
+          },
+        ),
+        const SizedBox(height: 12),
+        _SelectField(
+          label: 'Materia',
+          value: subjectId,
+          items: widget.data.subjects
+              .map((item) => (item.id, item.name))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => subjectId = value);
+          },
+        ),
+        const SizedBox(height: 12),
+        _SelectField(
+          label: 'Docente que imparte',
+          value: teacherId,
+          items: widget.data.teachers
+              .map((item) => (item.id, item.fullName))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => teacherId = value);
+          },
+        ),
+      ],
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      FilledButton.icon(
-        onPressed: courseId == null || subjectId == null || teacherId == null
-            ? null
-            : () => Navigator.pop(
-                context,
-                AcademicAssignment(
-                  id: widget.current?.id,
-                  courseId: courseId!,
-                  subjectId: subjectId!,
-                  teacherId: teacherId!,
-                  weeklyMinutes: weeklyMinutes,
-                ),
-              ),
-        icon: const Icon(LucideIcons.check, size: 16),
-        label: const Text('Aceptar'),
-      ),
-    ],
   );
 }
 
@@ -1329,14 +2190,22 @@ class _BlockDialog extends StatefulWidget {
     required this.assignments,
     required this.initialWeekday,
     required this.initialStartMinutes,
+    this.initialEndMinutes,
+    this.initialAssignment,
     this.current,
+    this.fixedCourseId,
+    this.fixedTeacherId,
     this.fixedClassroomId,
   });
   final SchedulePlannerData data;
   final List<AcademicAssignment> assignments;
+  final AcademicAssignment? initialAssignment;
   final PlannerScheduleBlock? current;
   final int initialWeekday;
   final int initialStartMinutes;
+  final int? initialEndMinutes;
+  final String? fixedCourseId;
+  final String? fixedTeacherId;
   final String? fixedClassroomId;
 
   @override
@@ -1345,7 +2214,10 @@ class _BlockDialog extends StatefulWidget {
 
 class _BlockDialogState extends State<_BlockDialog> {
   late AcademicAssignment assignment = widget.current == null
-      ? widget.assignments.first
+      ? widget.assignments.firstWhere(
+          (item) => item.key == widget.initialAssignment?.key,
+          orElse: () => widget.assignments.first,
+        )
       : widget.assignments.firstWhere(
           (item) =>
               item.courseId == widget.current!.courseId &&
@@ -1362,7 +2234,64 @@ class _BlockDialogState extends State<_BlockDialog> {
       widget.current?.startMinutes ?? widget.initialStartMinutes;
   late int endMinutes =
       widget.current?.endMinutes ??
-      math.min(widget.initialStartMinutes + 30, widget.data.config.endMinutes);
+      widget.initialEndMinutes ??
+      math.min(
+        widget.initialStartMinutes + widget.data.config.intervalMinutes,
+        widget.data.config.endMinutes,
+      );
+
+  AcademicAssignment _assignmentFor({
+    required String courseId,
+    required String subjectId,
+    required String teacherId,
+  }) {
+    AcademicAssignment? existing;
+    for (final item in widget.assignments) {
+      if (item.courseId == courseId && item.subjectId == subjectId) {
+        existing = item;
+        break;
+      }
+    }
+    final selectedTeacherId = widget.fixedTeacherId ?? teacherId;
+    return existing?.copyWith(
+          teacherId: widget.fixedTeacherId == null
+              ? existing.teacherId
+              : selectedTeacherId,
+        ) ??
+        AcademicAssignment(
+          courseId: courseId,
+          subjectId: subjectId,
+          teacherId: selectedTeacherId,
+          weeklyMinutes: 30,
+        );
+  }
+
+  void _selectCourse(String? courseId) {
+    if (courseId == null) return;
+    setState(
+      () => assignment = _assignmentFor(
+        courseId: courseId,
+        subjectId: assignment.subjectId,
+        teacherId: assignment.teacherId,
+      ),
+    );
+  }
+
+  void _selectSubject(String? subjectId) {
+    if (subjectId == null) return;
+    setState(
+      () => assignment = _assignmentFor(
+        courseId: assignment.courseId,
+        subjectId: subjectId,
+        teacherId: assignment.teacherId,
+      ),
+    );
+  }
+
+  void _selectTeacher(String? teacherId) {
+    if (teacherId == null) return;
+    setState(() => assignment = assignment.copyWith(teacherId: teacherId));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1380,135 +2309,222 @@ class _BlockDialogState extends State<_BlockDialog> {
         widget.data.config.endMinutes,
       );
     }
-    return AlertDialog(
-      title: AppDialogHeader(
-        title: widget.current == null ? 'Ubicar clase' : 'Editar bloque',
+    AcademicAssignment? storedAssignment;
+    for (final item in widget.assignments) {
+      if (item.courseId == assignment.courseId &&
+          item.subjectId == assignment.subjectId) {
+        storedAssignment = item;
+        break;
+      }
+    }
+    final reassigningTeacher =
+        storedAssignment != null &&
+        storedAssignment.teacherId != assignment.teacherId;
+    return _PlannerDialogShell(
+      title: widget.current == null ? 'Agregar una clase' : 'Editar la clase',
+      maxWidth: 540,
+      primaryLabel: widget.current == null
+          ? 'Agregar clase'
+          : 'Guardar cambios',
+      primaryIcon: LucideIcons.check,
+      onPrimary: () => Navigator.pop(
+        context,
+        PlannerBlockDraft(
+          assignment: assignment,
+          classroomId: classroomId,
+          weekday: weekday,
+          startMinutes: startMinutes,
+          endMinutes: endMinutes,
+        ),
       ),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _DialogSectionHeader(
+            icon: LucideIcons.bookOpen,
+            title: '1. Asignación académica',
+          ),
+          const SizedBox(height: 12),
+          _SelectField(
+            key: ValueKey('course-${assignment.courseId}'),
+            label: 'Curso',
+            value: assignment.courseId,
+            items: widget.data.courses
+                .where(
+                  (item) =>
+                      widget.fixedCourseId == null ||
+                      item.id == widget.fixedCourseId,
+                )
+                .map((item) => (item.id, item.name))
+                .toList(),
+            enabled: widget.fixedCourseId == null,
+            onChanged: _selectCourse,
+          ),
+          const SizedBox(height: 12),
+          _SelectField(
+            key: ValueKey(
+              'subject-${assignment.courseId}-${assignment.subjectId}',
+            ),
+            label: 'Materia',
+            value: assignment.subjectId,
+            items: widget.data.subjects
+                .map((item) => (item.id, item.name))
+                .toList(),
+            onChanged: _selectSubject,
+          ),
+          const SizedBox(height: 12),
+          _SelectField(
+            key: ValueKey(
+              'teacher-${assignment.courseId}-${assignment.subjectId}-${assignment.teacherId}',
+            ),
+            label: 'Docente',
+            value: assignment.teacherId,
+            items: widget.data.teachers
+                .where(
+                  (item) =>
+                      widget.fixedTeacherId == null ||
+                      item.id == widget.fixedTeacherId,
+                )
+                .map((item) => (item.id, item.fullName))
+                .toList(),
+            enabled: widget.fixedTeacherId == null,
+            onChanged: _selectTeacher,
+          ),
+          if (reassigningTeacher) ...[
+            const SizedBox(height: 10),
+            _TeacherReassignmentNotice(
+              subjectName: widget.data.subjects
+                  .firstWhere((item) => item.id == assignment.subjectId)
+                  .name,
+              courseName: widget.data.courses
+                  .firstWhere((item) => item.id == assignment.courseId)
+                  .name,
+              teacherName: widget.data.teachers
+                  .firstWhere((item) => item.id == assignment.teacherId)
+                  .fullName,
+            ),
+          ],
+          const SizedBox(height: 24),
+          const _DialogSectionHeader(
+            icon: LucideIcons.calendarClock,
+            title: '2. Día y horario',
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: weekday,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Día de la semana'),
+            items: [
+              for (var day = 1; day <= 5; day += 1)
+                DropdownMenuItem(value: day, child: Text(weekdayLabels[day]!)),
+            ],
+            onChanged: (value) => setState(() => weekday = value ?? weekday),
+          ),
+          const SizedBox(height: 12),
+          _TimeField(
+            label: 'Hora de inicio',
+            value: startMinutes,
+            options: slots
+                .where((item) => item < widget.data.config.endMinutes)
+                .toList(),
+            onChanged: (value) => setState(() {
+              startMinutes = value;
+              if (endMinutes <= startMinutes) {
+                endMinutes = math.min(
+                  startMinutes + widget.data.config.intervalMinutes,
+                  widget.data.config.endMinutes,
+                );
+              }
+            }),
+          ),
+          const SizedBox(height: 12),
+          _TimeField(
+            key: ValueKey('$startMinutes-$endMinutes'),
+            label: 'Hora de fin',
+            value: endMinutes,
+            options: slots.where((item) => item > startMinutes).toList(),
+            onChanged: (value) => setState(() => endMinutes = value),
+          ),
+          const SizedBox(height: 10),
+          Row(
             children: [
-              DropdownButtonFormField<AcademicAssignment>(
-                initialValue: assignment,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Asignación académica',
+              const Icon(
+                LucideIcons.timer,
+                size: 16,
+                color: AppColors.inkMuted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Duración total: ${_durationLabel(endMinutes - startMinutes)}',
+                  style: const TextStyle(
+                    color: AppColors.inkMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                items: widget.assignments
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(
-                          _assignmentLabel(widget.data, item),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => assignment = value ?? assignment),
-              ),
-              const SizedBox(height: 12),
-              _SelectField(
-                label: 'Aula',
-                value: classroomId,
-                enabled: widget.fixedClassroomId == null,
-                items: widget.data.classrooms
-                    .map((item) => (item.id, '${item.code} · ${item.name}'))
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => classroomId = value ?? classroomId),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: weekday,
-                decoration: const InputDecoration(labelText: 'Día'),
-                items: [
-                  for (var day = 1; day <= 5; day += 1)
-                    DropdownMenuItem(
-                      value: day,
-                      child: Text(weekdayLabels[day]!),
-                    ),
-                ],
-                onChanged: (value) =>
-                    setState(() => weekday = value ?? weekday),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: startMinutes,
-                      decoration: const InputDecoration(labelText: 'Desde'),
-                      items: slots
-                          .where((item) => item < widget.data.config.endMinutes)
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(scheduleMinutesToTime(item)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) => setState(() {
-                        startMinutes = value ?? startMinutes;
-                        if (endMinutes <= startMinutes) {
-                          endMinutes = math.min(
-                            startMinutes + widget.data.config.intervalMinutes,
-                            widget.data.config.endMinutes,
-                          );
-                        }
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      key: ValueKey('$startMinutes-$endMinutes'),
-                      initialValue: endMinutes,
-                      decoration: const InputDecoration(labelText: 'Hasta'),
-                      items: slots
-                          .where((item) => item > startMinutes)
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(scheduleMinutesToTime(item)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => endMinutes = value ?? endMinutes),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(
-            context,
-            PlannerBlockDraft(
-              assignment: assignment,
-              classroomId: classroomId,
-              weekday: weekday,
-              startMinutes: startMinutes,
-              endMinutes: endMinutes,
-            ),
+          const SizedBox(height: 24),
+          const _DialogSectionHeader(
+            icon: LucideIcons.doorOpen,
+            title: '3. Aula',
           ),
-          icon: const Icon(LucideIcons.check, size: 16),
-          label: const Text('Aceptar'),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _SelectField(
+            label: 'Aula donde será la clase',
+            value: classroomId,
+            enabled: widget.fixedClassroomId == null,
+            items: widget.data.classrooms
+                .map((item) => (item.id, item.name))
+                .toList(),
+            onChanged: (value) =>
+                setState(() => classroomId = value ?? classroomId),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _TeacherReassignmentNotice extends StatelessWidget {
+  const _TeacherReassignmentNotice({
+    required this.subjectName,
+    required this.courseName,
+    required this.teacherName,
+  });
+
+  final String subjectName;
+  final String courseName;
+  final String teacherName;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.amberSoft,
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(LucideIcons.triangleAlert, size: 17, color: AppColors.amber),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Al guardar, todas las clases de $subjectName en $courseName '
+            'pasarán a $teacherName.',
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _GeneralConfigDialog extends StatefulWidget {
@@ -1540,128 +2556,121 @@ class _GeneralConfigDialogState extends State<_GeneralConfigDialog> {
     final options = [
       for (var value = 6 * 60; value <= 21 * 60; value += 30) value,
     ];
-    return AlertDialog(
-      title: const AppDialogHeader(title: 'Configuración general'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return _PlannerDialogShell(
+      title: 'Configuración del horario',
+      subtitle: '${widget.data.period.name} ${widget.data.period.year}',
+      maxWidth: 680,
+      primaryLabel: 'Guardar configuración',
+      primaryIcon: LucideIcons.save,
+      onPrimary: _submit,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _DialogSectionHeader(
+            icon: LucideIcons.calendarClock,
+            title: 'Jornada general',
+          ),
+          const SizedBox(height: 12),
+          _ResponsiveFieldRow(
             children: [
-              const Text(
-                'Jornada',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              _TimeField(
+                label: 'Inicio de jornada',
+                value: startMinutes,
+                options: options.where((item) => item < endMinutes).toList(),
+                onChanged: (value) => setState(() => startMinutes = value),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimeField(
-                      label: 'Desde',
-                      value: startMinutes,
-                      options: options
-                          .where((item) => item < endMinutes)
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => startMinutes = value),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _TimeField(
-                      label: 'Hasta',
-                      value: endMinutes,
-                      options: options
-                          .where((item) => item > startMinutes)
-                          .toList(),
-                      onChanged: (value) => setState(() => endMinutes = value),
-                    ),
-                  ),
-                ],
+              _TimeField(
+                label: 'Fin de jornada',
+                value: endMinutes,
+                options: options.where((item) => item > startMinutes).toList(),
+                onChanged: (value) => setState(() => endMinutes = value),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Tolerancia de atraso',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  Text(
-                    '$tolerance min',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-              Slider(
-                value: tolerance.toDouble(),
-                min: 0,
-                max: 30,
-                divisions: 6,
-                label: '$tolerance min',
-                onChanged: (value) => setState(() => tolerance = value.round()),
-              ),
-              const Divider(height: 28),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Recreos generales',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Agregar recreo',
-                    onPressed: () => setState(
-                      () => breaks.add(
-                        _BreakInput(
-                          name: 'RECREO',
-                          startMinutes: 10 * 60,
-                          endMinutes: 10 * 60 + 30,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(LucideIcons.plus, size: 18),
-                  ),
-                ],
-              ),
-              ...breaks.indexed.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _BreakEditor(
-                    value: entry.$2,
-                    options: options,
-                    onChanged: (value) =>
-                        setState(() => breaks[entry.$1] = value),
-                    onRemove: () => setState(() => breaks.removeAt(entry.$1)),
-                  ),
-                ),
-              ),
-              if (validation != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    validation!,
-                    style: const TextStyle(color: AppColors.red, fontSize: 12),
-                  ),
-                ),
             ],
           ),
-        ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Tolerancia de atraso',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.blueSoft,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$tolerance min',
+                  style: const TextStyle(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: tolerance.toDouble(),
+            min: 0,
+            max: 30,
+            divisions: 6,
+            label: '$tolerance min',
+            onChanged: (value) => setState(() => tolerance = value.round()),
+          ),
+          const Divider(height: 34),
+          _DialogSectionHeader(
+            icon: LucideIcons.coffee,
+            title: 'Recreos generales',
+            trailing: OutlinedButton.icon(
+              onPressed: () => setState(
+                () => breaks.add(
+                  _BreakInput(
+                    name: 'RECREO',
+                    startMinutes: 10 * 60,
+                    endMinutes: 10 * 60 + 30,
+                  ),
+                ),
+              ),
+              icon: const Icon(LucideIcons.plus, size: 16),
+              label: const Text('Agregar'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (breaks.isEmpty)
+            const _EmptyBreaks()
+          else
+            ...breaks.indexed.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _BreakEditor(
+                  index: entry.$1 + 1,
+                  value: entry.$2,
+                  options: options,
+                  onChanged: (value) =>
+                      setState(() => breaks[entry.$1] = value),
+                  onRemove: () => setState(() => breaks.removeAt(entry.$1)),
+                ),
+              ),
+            ),
+          if (validation != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.redSoft,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                validation!,
+                style: const TextStyle(color: AppColors.red, fontSize: 12),
+              ),
+            ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: const Icon(LucideIcons.save, size: 16),
-          label: const Text('Guardar'),
-        ),
-      ],
     );
   }
 
@@ -1734,29 +2743,55 @@ class _BreakInput {
 
 class _BreakEditor extends StatelessWidget {
   const _BreakEditor({
+    required this.index,
     required this.value,
     required this.options,
     required this.onChanged,
     required this.onRemove,
   });
+  final int index;
   final _BreakInput value;
   final List<int> options;
   final ValueChanged<_BreakInput> onChanged;
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final compact = constraints.maxWidth < 500;
-      final name = TextFormField(
-        initialValue: value.name,
-        decoration: const InputDecoration(labelText: 'Nombre'),
-        onChanged: (text) => onChanged(value.copyWith(name: text)),
-      );
-      final times = Row(
-        children: [
-          Expanded(
-            child: _TimeField(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+    decoration: BoxDecoration(
+      color: AppColors.canvas,
+      border: Border.all(color: AppColors.border),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Recreo $index',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Retirar recreo',
+              visualDensity: VisualDensity.compact,
+              onPressed: onRemove,
+              icon: const Icon(LucideIcons.trash2, size: 17),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        TextFormField(
+          initialValue: value.name,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+          onChanged: (text) => onChanged(value.copyWith(name: text)),
+        ),
+        const SizedBox(height: 10),
+        _ResponsiveFieldRow(
+          compactBreakpoint: 390,
+          children: [
+            _TimeField(
               label: 'Desde',
               value: value.startMinutes,
               options: options
@@ -1765,10 +2800,7 @@ class _BreakEditor extends StatelessWidget {
               onChanged: (item) =>
                   onChanged(value.copyWith(startMinutes: item)),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _TimeField(
+            _TimeField(
               label: 'Hasta',
               value: value.endMinutes,
               options: options
@@ -1776,29 +2808,16 @@ class _BreakEditor extends StatelessWidget {
                   .toList(),
               onChanged: (item) => onChanged(value.copyWith(endMinutes: item)),
             ),
-          ),
-          IconButton(
-            tooltip: 'Retirar recreo',
-            onPressed: onRemove,
-            icon: const Icon(LucideIcons.trash2, size: 17),
-          ),
-        ],
-      );
-      return compact
-          ? Column(children: [name, const SizedBox(height: 8), times])
-          : Row(
-              children: [
-                Expanded(flex: 3, child: name),
-                const SizedBox(width: 8),
-                Expanded(flex: 5, child: times),
-              ],
-            );
-    },
+          ],
+        ),
+      ],
+    ),
   );
 }
 
 class _SelectField extends StatelessWidget {
   const _SelectField({
+    super.key,
     required this.label,
     required this.value,
     required this.items,
@@ -1830,6 +2849,7 @@ class _SelectField extends StatelessWidget {
 
 class _TimeField extends StatelessWidget {
   const _TimeField({
+    super.key,
     required this.label,
     required this.value,
     required this.options,
@@ -1855,6 +2875,26 @@ class _TimeField extends StatelessWidget {
     onChanged: (value) {
       if (value != null) onChanged(value);
     },
+  );
+}
+
+class _EmptyBreaks extends StatelessWidget {
+  const _EmptyBreaks();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.canvas,
+      border: Border.all(color: AppColors.border),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: const Text(
+      'No hay recreos configurados.',
+      textAlign: TextAlign.center,
+      style: TextStyle(color: AppColors.inkMuted),
+    ),
   );
 }
 
@@ -1935,32 +2975,10 @@ class _LoadError extends StatelessWidget {
   );
 }
 
-String _assignmentLabel(
-  SchedulePlannerData data,
-  AcademicAssignment assignment,
-) {
-  final course = data.courses.firstWhere(
-    (item) => item.id == assignment.courseId,
-  );
-  final subject = data.subjects.firstWhere(
-    (item) => item.id == assignment.subjectId,
-  );
-  final teacher = data.teachers.firstWhere(
-    (item) => item.id == assignment.teacherId,
-  );
-  return '${course.name} · ${subject.name} · ${teacher.fullName}';
-}
-
 String _durationLabel(int minutes) {
   final hours = minutes ~/ 60;
   final rest = minutes % 60;
   if (hours == 0) return '$rest min';
   if (rest == 0) return '$hours h';
   return '$hours h $rest min';
-}
-
-String _initials(String value) {
-  final words = value.trim().split(RegExp(r'\s+'));
-  if (words.isEmpty) return '';
-  return words.take(2).map((item) => item[0].toUpperCase()).join();
 }
