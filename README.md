@@ -37,7 +37,11 @@ Para un teléfono Android físico, define una URL HTTPS o una IP local alcanzabl
 
 - APK: `build/app/outputs/flutter-apk/app-debug.apk`
 
-La vista de reportes descarga un PDF real desde la API autenticada. Las credenciales se introducen en la pantalla de acceso y nunca se versionan en este repositorio. No uses `.env` ni `--dart-define` para secretos de usuario: Flutter los incorpora al artefacto compilado.
+La vista de reportes descarga un PDF real desde la API autenticada. Flutter
+guarda una única sesión opaca en almacenamiento seguro; no usa JWT ni token de
+renovación. Las credenciales se introducen en la pantalla de acceso y nunca se
+versionan en este repositorio. No uses `.env` ni `--dart-define` para secretos
+de usuario: Flutter los incorpora al artefacto compilado.
 
 ## Arquitectura
 

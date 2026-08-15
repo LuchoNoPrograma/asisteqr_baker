@@ -86,10 +86,7 @@ ApiSchedulePlannerRepository _repository(HttpClientAdapter adapter) {
 
 class _TokenStore extends SecureTokenStore {
   @override
-  Future<String?> readAccessToken() async => 'access-token';
-
-  @override
-  Future<String?> readRefreshToken() async => null;
+  Future<String?> readToken() async => 'session-token';
 }
 
 class _ScheduleCatalogAdapter implements HttpClientAdapter {
@@ -106,7 +103,7 @@ class _ScheduleCatalogAdapter implements HttpClientAdapter {
     lastMethod = options.method;
     lastPath = options.path;
     lastPayload = (options.data as Map).cast<String, dynamic>();
-    expect(options.headers['Authorization'], 'Bearer access-token');
+    expect(options.headers['Authorization'], 'Bearer session-token');
     final response = options.path == '/horarios-clase/planificador'
         ? {'version': 2}
         : options.path.startsWith('/materias')

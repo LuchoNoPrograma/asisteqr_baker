@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:asisteqr_baker/core/network/api_client.dart';
 import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
 import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
@@ -48,31 +46,20 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<SessionUser?> restoreSession() async {
-    var token = await _tokens.readAccessToken();
+    final token = await _tokens.readToken();
     if (token == null) return null;
-    var claims = _claims(token);
-    final expiresAt = (claims?['exp'] as num?)?.toInt();
-    final expired =
-        expiresAt == null ||
-        DateTime.fromMillisecondsSinceEpoch(
-          expiresAt * 1000,
-          isUtc: true,
-        ).isBefore(DateTime.now().toUtc());
-    if (expired) {
-      if (!await _client.renewSession()) return null;
-      token = await _tokens.readAccessToken();
-      claims = token == null ? null : _claims(token);
+    try {
+      final response = await _client.dio.get<Map<String, dynamic>>(
+        '/autenticacion/sesion',
+      );
+      return _user(response.data!['usuario'] as Map<String, dynamic>);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 401) {
+        await _tokens.clear();
+        return null;
+      }
+      rethrow;
     }
-    if (claims == null) {
-      await _tokens.clear();
-      return null;
-    }
-    final roles = claims['roles'] as List<dynamic>? ?? const [];
-    return SessionUser(
-      id: claims['sub']?.toString() ?? '',
-      name: claims['usuario']?.toString() ?? 'Usuario Baker',
-      role: roles.isEmpty ? 'DOCENTE' : roles.first.toString(),
-    );
   }
 
   @override
@@ -86,16 +73,9 @@ class ApiAuthRepository implements AuthRepository {
         data: {'usuario': username, 'contrasena': password},
       );
       final body = response.data!;
-      await _tokens.writeTokens(
-        accessToken: body['tokenAcceso'].toString(),
-        refreshToken: body['tokenRenovacion'].toString(),
-      );
+      await _tokens.writeToken(body['token'].toString());
       final user = body['usuario'] as Map<String, dynamic>;
-      return SessionUser(
-        id: user['id'].toString(),
-        name: user['nombreCompleto'].toString(),
-        role: user['rol'].toString(),
-      );
+      return _user(user);
     } on DioException catch (error) {
       final data = error.response?.data;
       final body = data is Map ? data : null;
@@ -122,16 +102,9 @@ class ApiAuthRepository implements AuthRepository {
     }
   }
 
-  Map<String, dynamic>? _claims(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) return null;
-      return jsonDecode(
-            utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-          )
-          as Map<String, dynamic>;
-    } on Object {
-      return null;
-    }
-  }
+  SessionUser _user(Map<String, dynamic> user) => SessionUser(
+    id: user['id'].toString(),
+    name: user['nombreCompleto'].toString(),
+    role: user['rol'].toString(),
+  );
 }

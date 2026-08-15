@@ -4,32 +4,20 @@ class SecureTokenStore {
   SecureTokenStore([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
 
-  static const _accessKey = 'asisteqr_access_token';
-  static const _refreshKey = 'asisteqr_refresh_token';
+  static const _tokenKey = 'asisteqr_session_token';
   final FlutterSecureStorage _storage;
-  String? _accessToken;
-  String? _refreshToken;
+  String? _token;
 
-  Future<String?> readAccessToken() async =>
-      _accessToken ??= await _storage.read(key: _accessKey);
-  Future<String?> readRefreshToken() async =>
-      _refreshToken ??= await _storage.read(key: _refreshKey);
+  Future<String?> readToken() async =>
+      _token ??= await _storage.read(key: _tokenKey);
 
-  Future<void> writeTokens({
-    required String accessToken,
-    required String refreshToken,
-  }) async {
-    _accessToken = accessToken;
-    _refreshToken = refreshToken;
-    await Future.wait([
-      _storage.write(key: _accessKey, value: accessToken),
-      _storage.write(key: _refreshKey, value: refreshToken),
-    ]);
+  Future<void> writeToken(String token) async {
+    _token = token;
+    await _storage.write(key: _tokenKey, value: token);
   }
 
   Future<void> clear() async {
-    _accessToken = null;
-    _refreshToken = null;
+    _token = null;
     await _storage.deleteAll();
   }
 }

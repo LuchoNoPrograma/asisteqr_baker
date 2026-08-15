@@ -36,10 +36,7 @@ void main() {
 
 class _TokenStore extends SecureTokenStore {
   @override
-  Future<String?> readAccessToken() async => 'access-token';
-
-  @override
-  Future<String?> readRefreshToken() async => null;
+  Future<String?> readToken() async => 'session-token';
 }
 
 class _CredentialApiAdapter implements HttpClientAdapter {
@@ -54,7 +51,7 @@ class _CredentialApiAdapter implements HttpClientAdapter {
     requests++;
     expect(options.method, 'POST');
     expect(options.path, contains('/credenciales/imprimibles'));
-    expect(options.headers['Authorization'], 'Bearer access-token');
+    expect(options.headers['Authorization'], 'Bearer session-token');
     return ResponseBody.fromString(
       jsonEncode([
         {

@@ -71,7 +71,7 @@ class _ManualAttendanceApiAdapter implements HttpClientAdapter {
     expect(options.method, 'POST');
     expect(options.path, contains('/asistencias/manual'));
     expect(options.data, {'codigoEstudiante': 148});
-    expect(options.headers['Authorization'], 'Bearer access-token');
+    expect(options.headers['Authorization'], 'Bearer session-token');
     return ResponseBody.fromString(
       jsonEncode({
         'id': 'attendance-manual-1',
@@ -99,10 +99,7 @@ class _ManualAttendanceApiAdapter implements HttpClientAdapter {
 
 class _TokenStore extends SecureTokenStore {
   @override
-  Future<String?> readAccessToken() async => 'access-token';
-
-  @override
-  Future<String?> readRefreshToken() async => null;
+  Future<String?> readToken() async => 'session-token';
 }
 
 class _AttendanceApiAdapter implements HttpClientAdapter {
@@ -119,7 +116,7 @@ class _AttendanceApiAdapter implements HttpClientAdapter {
     expect(options.path, contains('/asistencias/diaria'));
     expect(options.queryParameters['fecha'], '2026-07-14');
     expect(options.queryParameters['cursoId'], 'course-4b');
-    expect(options.headers['Authorization'], 'Bearer access-token');
+    expect(options.headers['Authorization'], 'Bearer session-token');
     return ResponseBody.fromString(
       jsonEncode([]),
       200,
