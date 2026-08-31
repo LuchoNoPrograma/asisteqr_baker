@@ -18,7 +18,7 @@ class ReportsPage extends ConsumerStatefulWidget {
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
   String period = 'Semanal';
-  String? courseId;
+  int? courseId;
   DateTime referenceDate = DateUtils.dateOnly(DateTime.now());
 
   @override
@@ -68,7 +68,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     _load();
   }
 
-  void _setCourse(String? value) {
+  void _setCourse(int? value) {
     setState(() => courseId = value);
     _load();
   }
@@ -108,7 +108,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Resumen calculado con los registros del periodo activo.',
+                      'Resumen histórico por matrícula, día lectivo y jornada vigentes.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -194,6 +194,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           if (report.summary case final summary?) ...[
             const SizedBox(height: 14),
             _SummaryMetrics(summary: summary),
+            if (summary.ignoredRecords > 0) ...[
+              const SizedBox(height: 10),
+              _IgnoredRecordsNotice(count: summary.ignoredRecords),
+            ],
             const SizedBox(height: 14),
             _AttendanceDistribution(summary: summary),
           ],
@@ -214,12 +218,12 @@ class _ReportFilters extends StatelessWidget {
     required this.onClear,
   });
 
-  final List<({String id, String name})> courses;
-  final String? courseId;
+  final List<({int id, String name})> courses;
+  final int? courseId;
   final DateTime? from;
   final DateTime? to;
   final VoidCallback onDatePressed;
-  final ValueChanged<String?> onCourseChanged;
+  final ValueChanged<int?> onCourseChanged;
   final VoidCallback? onClear;
 
   @override
@@ -234,7 +238,7 @@ class _ReportFilters extends StatelessWidget {
         final fields = [
           SizedBox(
             width: horizontal ? 270 : constraints.maxWidth,
-            child: DropdownButtonFormField<String?>(
+            child: DropdownButtonFormField<int?>(
               key: ValueKey(courseId),
               initialValue: courseId,
               isExpanded: true,
@@ -328,11 +332,39 @@ class _SummaryMetrics extends StatelessWidget {
         label: 'Inasistencias',
         value: summary.absences.toString(),
         detail:
-            '${summary.enrolledStudents} estudiantes · ${summary.schoolDays} días',
+            '${summary.enrolledStudents} estudiantes · ${summary.schoolDays} días lectivos · por jornada',
         icon: LucideIcons.userRoundX,
         color: AppColors.red,
       ),
     ],
+  );
+}
+
+class _IgnoredRecordsNotice extends StatelessWidget {
+  const _IgnoredRecordsNotice({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: AppColors.amberSoft,
+      border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(LucideIcons.triangleAlert, color: AppColors.amber, size: 19),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            '$count registro(s) no se computaron porque no corresponden a una matrícula, jornada o día lectivo vigente.',
+          ),
+        ),
+      ],
+    ),
   );
 }
 

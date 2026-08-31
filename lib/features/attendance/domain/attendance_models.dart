@@ -2,6 +2,24 @@ import 'package:equatable/equatable.dart';
 
 enum AttendanceStatus { punctual, late, absent }
 
+enum AttendanceShift {
+  morning('MANANA', 'Mañana'),
+  afternoon('TARDE', 'Tarde'),
+  evening('NOCHE', 'Noche');
+
+  const AttendanceShift(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+
+  static AttendanceShift fromApi(String value) => switch (value) {
+    'MANANA' => AttendanceShift.morning,
+    'TARDE' => AttendanceShift.afternoon,
+    'NOCHE' => AttendanceShift.evening,
+    _ => throw FormatException('Jornada de asistencia desconocida: $value'),
+  };
+}
+
 enum StudentGender { male, female }
 
 extension AttendanceStatusLabel on AttendanceStatus {
@@ -22,7 +40,7 @@ class Student extends Equatable {
     this.gender,
   });
 
-  final String id;
+  final int id;
   final String code;
   final String fullName;
   final String course;
@@ -69,15 +87,26 @@ class AttendanceRecord extends Equatable {
     required this.student,
     required this.timestamp,
     required this.status,
+    this.scheduleId,
+    this.shift,
   });
 
-  final String id;
+  final int? id;
   final Student student;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   final AttendanceStatus status;
+  final int? scheduleId;
+  final AttendanceShift? shift;
 
   @override
-  List<Object?> get props => [id, student, timestamp, status];
+  List<Object?> get props => [
+    id,
+    student,
+    timestamp,
+    status,
+    scheduleId,
+    shift,
+  ];
 }
 
 class ScanResult extends Equatable {
@@ -133,6 +162,10 @@ enum AttendanceFailureKind {
   unreadableQr,
   inactiveStudent,
   studentNotFound,
+  missingEnrollment,
+  missingSchedule,
+  missingShift,
+  missingScheduleConfiguration,
   network,
   unauthorized,
   unknown,

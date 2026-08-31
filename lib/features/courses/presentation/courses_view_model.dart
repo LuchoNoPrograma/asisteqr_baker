@@ -13,23 +13,31 @@ class CoursesViewModel extends ChangeNotifier {
   bool saving = false;
   String? error;
   Timer? _debounce;
+  int _loadGeneration = 0;
 
   Future<void> load({String? search}) async {
+    final loadGeneration = ++_loadGeneration;
     loading = true;
     error = null;
     notifyListeners();
     try {
-      courses = await _repository.getCourses(search: search);
+      final loadedCourses = await _repository.getCourses(search: search);
+      if (loadGeneration != _loadGeneration) return;
+      courses = loadedCourses;
     } on CourseException catch (exception) {
+      if (loadGeneration != _loadGeneration) return;
       error = exception.message;
     } finally {
-      loading = false;
-      notifyListeners();
+      if (loadGeneration == _loadGeneration) {
+        loading = false;
+        notifyListeners();
+      }
     }
   }
 
   void search(String value) {
     _debounce?.cancel();
+    _loadGeneration++;
     _debounce = Timer(
       const Duration(milliseconds: 320),
       () => load(search: value),
@@ -129,7 +137,7 @@ class CoursesViewModel extends ChangeNotifier {
     _replaceCourse(course.id, course);
   }
 
-  void _replaceCourse(String id, CourseEntry replacement) {
+  void _replaceCourse(int id, CourseEntry replacement) {
     courses = List.unmodifiable([
       for (final course in courses) course.id == id ? replacement : course,
     ]);
@@ -138,6 +146,7 @@ class CoursesViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _debounce?.cancel();
+    _loadGeneration++;
     super.dispose();
   }
 }

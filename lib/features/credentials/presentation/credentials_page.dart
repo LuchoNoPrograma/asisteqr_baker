@@ -33,7 +33,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   List<CredentialStudent> get _selected => _model.selected;
   List<String> get _courses => _model.courses;
   CredentialStudent? get _previewStudent => _model.previewStudent;
-  Set<String> get _selectedIds => _model.selectedIds;
+  Set<int> get _selectedIds => _model.selectedIds;
   String? get _course => _model.course;
   CredentialPrintMode get _printMode => _model.printMode;
   bool get _exporting => _model.exporting;

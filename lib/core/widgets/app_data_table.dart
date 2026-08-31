@@ -224,36 +224,41 @@ class _AppDataTableState<T> extends State<AppDataTable<T>> {
               ),
             ),
             for (var index = 0; index < widget.filters.length; index++)
-              SizedBox(
-                width: filterWidth,
-                child: DropdownButtonFormField<int>(
-                  key: ValueKey('data_filter_$index'),
-                  initialValue: _selectedFilters[index],
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: widget.filters[index].label,
-                    isDense: true,
-                  ),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Todos')),
-                    for (
-                      var optionIndex = 0;
-                      optionIndex < widget.filters[index].options.length;
-                      optionIndex++
-                    )
-                      DropdownMenuItem(
-                        value: optionIndex,
-                        child: Text(
-                          widget.filters[index].options[optionIndex].label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+              KeyedSubtree(
+                key: ValueKey('data_filter_$index'),
+                child: SizedBox(
+                  width: filterWidth,
+                  child: DropdownButtonFormField<int>(
+                    key: ValueKey(
+                      'data_filter_${index}_${_selectedFilters[index] ?? 'all'}',
+                    ),
+                    initialValue: _selectedFilters[index],
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: widget.filters[index].label,
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos')),
+                      for (
+                        var optionIndex = 0;
+                        optionIndex < widget.filters[index].options.length;
+                        optionIndex++
+                      )
+                        DropdownMenuItem(
+                          value: optionIndex,
+                          child: Text(
+                            widget.filters[index].options[optionIndex].label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _selectedFilters[index] = value;
-                    _page = 0;
-                  }),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _selectedFilters[index] = value;
+                      _page = 0;
+                    }),
+                  ),
                 ),
               ),
             OutlinedButton.icon(

@@ -1,8 +1,8 @@
 # AsisteQR Baker
 
-Aplicación Flutter responsive para registrar asistencia mediante QR, verificar la identidad del estudiante y consultar reportes protegidos por rol.
+Aplicación Flutter responsive para registrar asistencia mediante QR, verificar la identidad del estudiante y consultar reportes protegidos por rol. El regente opera el escáner o el ingreso manual y registra una asistencia por estudiante, fecha y jornada; el docente conserva acceso de consulta.
 
-Incluye CRUD responsive de estudiantes, docentes, cursos, horarios de ingreso y planillas semanales. El formulario de estudiantes no solicita código: la API devuelve el consecutivo asignado por PostgreSQL. Las fotografías visibles y las credenciales PDF usan la fuente entregada por la API; las imágenes de demostración quedan limitadas a los repositorios mock.
+Incluye CRUD responsive de estudiantes, docentes, cursos, horarios de ingreso y planillas semanales. El formulario de estudiantes no solicita código: la API devuelve el consecutivo asignado por PostgreSQL. Las fotografías visibles y las credenciales PDF usan la fuente entregada por la API. Las bajas de docentes y cursos se rechazan con `409` mientras existan dependencias académicas activas; no se elimina planificación silenciosamente.
 
 El escáner mantiene el ciclo de vida de la cámara al cambiar de aplicación, diferencia errores de permiso y compatibilidad, y conserva el ingreso manual por ID de estudiante como alternativa. Usa `mobile_scanner` en Android, FFmpeg/V4L2 para capturar la cámara en Linux y `opencv_dart` para decodificar el QR. Windows conserva la captura y lectura nativa con OpenCV. Las confirmaciones, advertencias y errores importantes se presentan con `quickalert` como alertas modales animadas de alto contraste.
 
@@ -37,11 +37,14 @@ Para un teléfono Android físico, define una URL HTTPS o una IP local alcanzabl
 
 - APK: `build/app/outputs/flutter-apk/app-debug.apk`
 
-La vista de reportes descarga un PDF real desde la API autenticada. Flutter
-guarda una única sesión opaca en almacenamiento seguro; no usa JWT ni token de
-renovación. Las credenciales se introducen en la pantalla de acceso y nunca se
-versionan en este repositorio. No uses `.env` ni `--dart-define` para secretos
-de usuario: Flutter los incorpora al artefacto compilado.
+La vista de reportes proyecta la cohorte histórica por matrícula, fecha lectiva
+y jornada vigentes, incluyendo periodos cerrados y días no lectivos del
+calendario académico. Descarga un PDF con la misma proyección y advierte sobre
+marcas no computables. Flutter guarda una única sesión opaca en almacenamiento
+seguro; no usa JWT ni token de renovación. Las credenciales se introducen en la
+pantalla de acceso y nunca se versionan en este repositorio. No uses `.env` ni
+`--dart-define` para secretos de usuario: Flutter los incorpora al artefacto
+compilado.
 
 ## Arquitectura
 
@@ -57,6 +60,18 @@ borrador en el view model y envian un unico guardado batch; las celdas de 30
 minutos son una representacion visual de bloques continuos y no operaciones
 independientes. El planificador general usa una sola fuente y puede proyectarse
 por curso, docente o aula.
+
+## Documentación funcional y auditoría
+
+- [`docs/FLUJOS_FUNCIONALES.md`](docs/FLUJOS_FUNCIONALES.md): actores, 24 flujos
+  actuales, autoridad de negocio e inventario de 44 rutas HTTP.
+- [`docs/ESTADO_AUDITORIA_2026-08-22.md`](docs/ESTADO_AUDITORIA_2026-08-22.md):
+  dictamen, fortalezas, validaciones, riesgos y estado de entrega.
+- [`docs/BITACORA_AUDITORIA.md`](docs/BITACORA_AUDITORIA.md): seguimiento vivo
+  de hallazgos, responsables, evidencia y criterios de cierre.
+- [`docs/BITACORA_SOLUCION_ISSUES.md`](docs/BITACORA_SOLUCION_ISSUES.md): cola
+  priorizada y contexto de relevo para resolver cada issue sin redescubrir la
+  auditoría.
 
 ## Verificación
 

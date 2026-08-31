@@ -14,13 +14,15 @@ class ReportExportViewModel extends ChangeNotifier {
   String? loadError;
   DateTime? from;
   DateTime? to;
-  String? courseId;
+  int? courseId;
+  int _loadGeneration = 0;
 
   Future<void> load(
     String period, {
-    String? selectedCourseId,
+    int? selectedCourseId,
     DateTime? referenceDate,
   }) async {
+    final loadGeneration = ++_loadGeneration;
     final range = _range(period, referenceDate ?? DateTime.now());
     loading = true;
     loadError = null;
@@ -29,16 +31,21 @@ class ReportExportViewModel extends ChangeNotifier {
     to = range.$2;
     notifyListeners();
     try {
-      summary = await _repository.getSummary(
+      final loadedSummary = await _repository.getSummary(
         from: range.$1,
         to: range.$2,
         courseId: selectedCourseId,
       );
+      if (loadGeneration != _loadGeneration) return;
+      summary = loadedSummary;
     } on ReportExportException catch (error) {
+      if (loadGeneration != _loadGeneration) return;
       loadError = error.message;
     } finally {
-      loading = false;
-      notifyListeners();
+      if (loadGeneration == _loadGeneration) {
+        loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -100,5 +107,11 @@ class ReportExportViewModel extends ChangeNotifier {
         ),
       ),
     };
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
   }
 }

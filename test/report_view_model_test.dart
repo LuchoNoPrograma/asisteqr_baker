@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
 import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,23 +14,23 @@ void main() {
 
       await model.load(
         'Semanal',
-        selectedCourseId: 'course-1',
+        selectedCourseId: 1,
         referenceDate: selectedDate,
       );
 
       expect(model.loading, isFalse);
       expect(model.summary?.totalRecords, 8);
-      expect(repository.summaryCourseId, 'course-1');
+      expect(repository.summaryCourseId, 1);
       expect(repository.summaryFrom, DateTime(2025, 4, 14));
       expect(repository.summaryTo, DateTime(2025, 4, 20));
       expect(await model.export('Semanal'), isTrue);
-      expect(repository.exportCourseId, 'course-1');
+      expect(repository.exportCourseId, 1);
       expect(repository.exportFrom, repository.summaryFrom);
       expect(repository.exportTo, repository.summaryTo);
 
       await model.load(
         'Mensual',
-        selectedCourseId: 'course-1',
+        selectedCourseId: 1,
         referenceDate: selectedDate,
       );
 
@@ -39,21 +41,95 @@ void main() {
       expect(repository.exportTo, repository.summaryTo);
     },
   );
+
+  test(
+    'descarta una respuesta de reporte anterior al filtro vigente',
+    () async {
+      final repository = _DeferredReportRepository();
+      final model = ReportExportViewModel(repository);
+
+      final oldLoad = model.load(
+        'Diario',
+        selectedCourseId: 1,
+        referenceDate: DateTime(2026, 8, 20),
+      );
+      final currentLoad = model.load(
+        'Diario',
+        selectedCourseId: 2,
+        referenceDate: DateTime(2026, 8, 21),
+      );
+
+      repository.loads[1].complete(_summary(totalRecords: 2));
+      await currentLoad;
+
+      expect(model.summary?.totalRecords, 2);
+      expect(model.courseId, 2);
+      expect(model.loading, isFalse);
+
+      repository.loads[0].completeError(
+        const ReportExportException('Error de un filtro anterior'),
+      );
+      await oldLoad;
+
+      expect(model.summary?.totalRecords, 2);
+      expect(model.loadError, isNull);
+      expect(model.loading, isFalse);
+    },
+  );
 }
 
-class _ReportRepository implements ReportRepository {
-  DateTime? summaryFrom;
-  DateTime? summaryTo;
-  String? summaryCourseId;
-  DateTime? exportFrom;
-  DateTime? exportTo;
-  String? exportCourseId;
+ReportSummary _summary({required int totalRecords}) => ReportSummary(
+  from: DateTime(2026, 8, 21),
+  to: DateTime(2026, 8, 21),
+  consideredPeriods: 1,
+  enrolledStudents: 2,
+  punctualAttendances: totalRecords,
+  lateAttendances: 0,
+  totalRecords: totalRecords,
+  schoolDays: 1,
+  nonInstructionalDays: 0,
+  expectedAttendances: 2,
+  absences: 0,
+  ignoredRecords: 0,
+  attendancePercentage: 100,
+  punctualityPercentage: 100,
+);
+
+class _DeferredReportRepository implements ReportRepository {
+  final loads = <Completer<ReportSummary>>[];
 
   @override
   Future<ReportSummary> getSummary({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
+  }) {
+    final load = Completer<ReportSummary>();
+    loads.add(load);
+    return load.future;
+  }
+
+  @override
+  Future<String> exportPdf({
+    required DateTime from,
+    required DateTime to,
+    int? courseId,
+  }) => throw UnimplementedError();
+}
+
+class _ReportRepository implements ReportRepository {
+  DateTime? summaryFrom;
+  DateTime? summaryTo;
+  int? summaryCourseId;
+  DateTime? exportFrom;
+  DateTime? exportTo;
+  int? exportCourseId;
+
+  @override
+  Future<ReportSummary> getSummary({
+    required DateTime from,
+    required DateTime to,
+    int? courseId,
   }) async {
     summaryFrom = from;
     summaryTo = to;
@@ -61,13 +137,16 @@ class _ReportRepository implements ReportRepository {
     return ReportSummary(
       from: from,
       to: to,
+      consideredPeriods: 1,
       enrolledStudents: 2,
       punctualAttendances: 7,
       lateAttendances: 1,
       totalRecords: 8,
       schoolDays: 5,
+      nonInstructionalDays: 0,
       expectedAttendances: 10,
       absences: 2,
+      ignoredRecords: 0,
       attendancePercentage: 80,
       punctualityPercentage: 87.5,
     );
@@ -77,7 +156,7 @@ class _ReportRepository implements ReportRepository {
   Future<String> exportPdf({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
   }) async {
     exportFrom = from;
     exportTo = to;

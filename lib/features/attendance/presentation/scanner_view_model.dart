@@ -10,12 +10,68 @@ class ScannerViewModel extends ChangeNotifier {
   ScanPhase phase = ScanPhase.ready;
   ScanResult? result;
   AttendanceException? failure;
+  List<AttendanceShift> availableShifts = const [];
+  AttendanceShift? selectedShift;
+  bool loadingShifts = false;
+  String? shiftsError;
+  int _shiftLoadGeneration = 0;
+
+  Future<void> loadShifts() async {
+    final generation = ++_shiftLoadGeneration;
+    loadingShifts = true;
+    shiftsError = null;
+    notifyListeners();
+    try {
+      final loaded = await _repository.getAvailableShifts();
+      if (generation != _shiftLoadGeneration) return;
+      availableShifts = List.unmodifiable(loaded);
+      if (loaded.length == 1) {
+        selectedShift = loaded.single;
+      } else if (!loaded.contains(selectedShift)) {
+        selectedShift = null;
+      }
+    } on AttendanceException catch (error) {
+      if (generation != _shiftLoadGeneration) return;
+      shiftsError = error.message;
+    } on Object {
+      if (generation != _shiftLoadGeneration) return;
+      shiftsError = 'No se pudieron cargar las jornadas disponibles.';
+    } finally {
+      if (generation == _shiftLoadGeneration) {
+        loadingShifts = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void selectShift(AttendanceShift? shift) {
+    if (selectedShift == shift) return;
+    selectedShift = shift;
+    notifyListeners();
+  }
 
   Future<ScanResult?> submitQr(String token) =>
-      _submit(() => _repository.registerQr(token));
+      _submitWithShift((shift) => _repository.registerQr(token, shift));
 
-  Future<ScanResult?> submitManual(int studentCode) =>
-      _submit(() => _repository.registerManual(studentCode));
+  Future<ScanResult?> submitManual(int studentCode) => _submitWithShift(
+    (shift) => _repository.registerManual(studentCode, shift),
+  );
+
+  Future<ScanResult?> _submitWithShift(
+    Future<ScanResult> Function(AttendanceShift shift) command,
+  ) {
+    final shift = selectedShift;
+    if (shift == null) {
+      failure = const AttendanceException(
+        AttendanceFailureKind.missingShift,
+        'Selecciona la jornada antes de registrar asistencia.',
+      );
+      phase = ScanPhase.failure;
+      notifyListeners();
+      return Future.value();
+    }
+    return _submit(() => command(shift));
+  }
 
   Future<ScanResult?> _submit(Future<ScanResult> Function() command) async {
     if (phase == ScanPhase.validating) return null;
@@ -47,5 +103,11 @@ class ScannerViewModel extends ChangeNotifier {
     phase = ScanPhase.ready;
     failure = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _shiftLoadGeneration++;
+    super.dispose();
   }
 }

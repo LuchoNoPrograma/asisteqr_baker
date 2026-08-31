@@ -15,8 +15,10 @@ class ApiPeopleRepository implements PeopleRepository {
       return response.data!
           .map((item) => item as Map<String, dynamic>)
           .map(
-            (item) =>
-                CourseOption(id: '${item['id']}', name: '${item['nombre']}'),
+            (item) => CourseOption(
+              id: (item['id'] as num).toInt(),
+              name: '${item['nombre']}',
+            ),
           )
           .toList();
     } on DioException catch (error) {
@@ -29,7 +31,7 @@ class ApiPeopleRepository implements PeopleRepository {
   @override
   Future<List<StudentEntry>> getStudents({
     String? search,
-    String? courseId,
+    int? courseId,
   }) async {
     try {
       final response = await _client.dio.get<List<dynamic>>(
@@ -51,10 +53,10 @@ class ApiPeopleRepository implements PeopleRepository {
       _saveStudent(null, draft);
 
   @override
-  Future<StudentEntry> updateStudent(String id, StudentDraft draft) =>
+  Future<StudentEntry> updateStudent(int id, StudentDraft draft) =>
       _saveStudent(id, draft);
 
-  Future<StudentEntry> _saveStudent(String? id, StudentDraft draft) async {
+  Future<StudentEntry> _saveStudent(int? id, StudentDraft draft) async {
     try {
       final data = {
         'nombres': draft.firstNames,
@@ -84,7 +86,7 @@ class ApiPeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<void> retireStudent(String id) async {
+  Future<void> retireStudent(int id) async {
     try {
       await _client.dio.delete<void>('/estudiantes/$id');
     } on DioException catch (error) {
@@ -116,10 +118,10 @@ class ApiPeopleRepository implements PeopleRepository {
       _saveTeacher(null, draft);
 
   @override
-  Future<TeacherEntry> updateTeacher(String id, TeacherDraft draft) =>
+  Future<TeacherEntry> updateTeacher(int id, TeacherDraft draft) =>
       _saveTeacher(id, draft);
 
-  Future<TeacherEntry> _saveTeacher(String? id, TeacherDraft draft) async {
+  Future<TeacherEntry> _saveTeacher(int? id, TeacherDraft draft) async {
     try {
       final data = {
         'nombres': draft.firstNames,
@@ -146,7 +148,7 @@ class ApiPeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<void> deactivateTeacher(String id) async {
+  Future<void> deactivateTeacher(int id) async {
     try {
       await _client.dio.delete<void>('/docentes/$id');
     } on DioException catch (error) {
@@ -159,7 +161,7 @@ class ApiPeopleRepository implements PeopleRepository {
   StudentEntry _student(Map<String, dynamic> json) {
     final course = json['curso'] as Map<String, dynamic>?;
     return StudentEntry(
-      id: '${json['id']}',
+      id: (json['id'] as num).toInt(),
       studentCode: (json['codigoEstudiante'] as num).toInt(),
       firstNames: '${json['nombres']}',
       lastNames: '${json['apellidos']}',
@@ -173,12 +175,15 @@ class ApiPeopleRepository implements PeopleRepository {
       status: '${json['estado']}',
       course: course == null
           ? null
-          : CourseOption(id: '${course['id']}', name: '${course['nombre']}'),
+          : CourseOption(
+              id: (course['id'] as num).toInt(),
+              name: '${course['nombre']}',
+            ),
     );
   }
 
   TeacherEntry _teacher(Map<String, dynamic> json) => TeacherEntry(
-    id: '${json['id']}',
+    id: (json['id'] as num).toInt(),
     teacherCode: (json['codigoDocente'] as num).toInt(),
     firstNames: '${json['nombres']}',
     lastNames: '${json['apellidos']}',

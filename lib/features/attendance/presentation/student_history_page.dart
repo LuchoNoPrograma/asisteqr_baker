@@ -11,7 +11,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class StudentHistoryPage extends ConsumerStatefulWidget {
   const StudentHistoryPage({super.key, required this.studentId});
-  final String studentId;
+  final int studentId;
 
   @override
   ConsumerState<StudentHistoryPage> createState() => _StudentHistoryPageState();
@@ -90,7 +90,7 @@ class _StudentHistoryPageState extends ConsumerState<StudentHistoryPage> {
           final period = DateFormat(
             'MMMM yyyy',
             'es',
-          ).format(loadedRecords.first.timestamp);
+          ).format(loadedRecords.first.timestamp!);
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -195,7 +195,7 @@ class _StudentHistoryPageState extends ConsumerState<StudentHistoryPage> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          DateFormat('dd').format(record.timestamp),
+                          DateFormat('dd').format(record.timestamp!),
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -208,7 +208,7 @@ class _StudentHistoryPageState extends ConsumerState<StudentHistoryPage> {
                               DateFormat(
                                 'EEEE d',
                                 'es',
-                              ).format(record.timestamp),
+                              ).format(record.timestamp!),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -216,7 +216,7 @@ class _StudentHistoryPageState extends ConsumerState<StudentHistoryPage> {
                             Text(
                               record.status == AttendanceStatus.absent
                                   ? 'Sin registro de ingreso'
-                                  : 'Ingreso ${DateFormat('HH:mm').format(record.timestamp)}',
+                                  : 'Ingreso ${DateFormat('HH:mm').format(record.timestamp!)}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],

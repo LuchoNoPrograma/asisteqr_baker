@@ -13,12 +13,14 @@ class StudentsViewModel extends ChangeNotifier {
   bool loading = false;
   bool saving = false;
   String? error;
-  String? courseId;
+  int? courseId;
   Timer? _debounce;
   String _search = '';
+  int _loadGeneration = 0;
 
   Future<void> load({String? search}) async {
     if (search != null) _search = search;
+    final loadGeneration = ++_loadGeneration;
     loading = true;
     error = null;
     notifyListeners();
@@ -30,23 +32,28 @@ class StudentsViewModel extends ChangeNotifier {
         ),
         _repository.getCourses(),
       ]);
+      if (loadGeneration != _loadGeneration) return;
       students = results[0] as List<StudentEntry>;
       courses = results[1] as List<CourseOption>;
     } on PeopleException catch (exception) {
+      if (loadGeneration != _loadGeneration) return;
       error = exception.message;
     } finally {
-      loading = false;
-      notifyListeners();
+      if (loadGeneration == _loadGeneration) {
+        loading = false;
+        notifyListeners();
+      }
     }
   }
 
   void search(String value) {
     _search = value;
     _debounce?.cancel();
+    _loadGeneration++;
     _debounce = Timer(const Duration(milliseconds: 320), load);
   }
 
-  Future<void> filterCourse(String? value) {
+  Future<void> filterCourse(int? value) {
     _debounce?.cancel();
     courseId = value;
     return load();
@@ -118,6 +125,7 @@ class StudentsViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _debounce?.cancel();
+    _loadGeneration++;
     super.dispose();
   }
 }

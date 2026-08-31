@@ -1,6 +1,6 @@
 class CourseOption {
   const CourseOption({required this.id, required this.name});
-  final String id;
+  final int id;
   final String name;
 }
 
@@ -19,7 +19,7 @@ class StudentEntry {
     this.course,
   });
 
-  final String id;
+  final int id;
   final int studentCode;
   final String firstNames;
   final String lastNames;
@@ -62,7 +62,7 @@ class TeacherEntry {
     this.photoUrl,
   });
 
-  final String id;
+  final int id;
   final int teacherCode;
   final String firstNames;
   final String lastNames;
@@ -104,7 +104,7 @@ class StudentDraft {
   final String firstNames;
   final String lastNames;
   final DateTime birthDate;
-  final String courseId;
+  final int courseId;
   final String? documentNumber;
   final String guardianName;
   final String? guardianPhone;

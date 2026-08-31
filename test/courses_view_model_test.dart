@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
 import 'package:asisteqr_baker/features/courses/domain/course_repository.dart';
 import 'package:asisteqr_baker/features/courses/presentation/courses_view_model.dart';
@@ -28,6 +30,17 @@ void main() {
     expect(await model.saveCourse(draft), isFalse);
     expect(model.saving, isFalse);
     expect(model.error, 'Fallo controlado');
+  });
+
+  test('un conflicto de baja conserva el curso activo', () async {
+    final repository = _CourseRepository(failOnDeactivate: true);
+    final model = CoursesViewModel(repository);
+    await model.saveCourse(draft);
+
+    expect(await model.deactivateCourse(model.courses.single), isFalse);
+    expect(model.courses, hasLength(1));
+    expect(model.error, contains('dependencias activas'));
+    expect(model.saving, isFalse);
   });
 
   test(
@@ -87,19 +100,62 @@ void main() {
       expect(model.saving, isFalse);
     },
   );
+
+  test('conserva los cursos de la carga mas reciente', () async {
+    final repository = _DeferredCourseRepository();
+    final model = CoursesViewModel(repository);
+
+    final oldLoad = model.load(search: 'anterior');
+    final currentLoad = model.load(search: 'vigente');
+
+    repository.loads[1].complete([_course(2)]);
+    await currentLoad;
+
+    expect(model.courses.single.id, 2);
+    expect(model.loading, isFalse);
+
+    repository.loads[0].complete([_course(1)]);
+    await oldLoad;
+
+    expect(model.courses.single.id, 2);
+    expect(model.loading, isFalse);
+  });
+}
+
+CourseEntry _course(int id) => CourseEntry(
+  id: id,
+  name: 'Curso $id',
+  level: 'Secundaria',
+  parallel: 'A',
+  year: 2026,
+  studentCount: 0,
+  teacherCount: 0,
+  schedules: const [],
+);
+
+class _DeferredCourseRepository extends _CourseRepository {
+  final loads = <Completer<List<CourseEntry>>>[];
+
+  @override
+  Future<List<CourseEntry>> getCourses({String? search}) {
+    final load = Completer<List<CourseEntry>>();
+    loads.add(load);
+    return load.future;
+  }
 }
 
 class _CourseRepository implements CourseRepository {
-  _CourseRepository({this.failOnSave = false});
+  _CourseRepository({this.failOnSave = false, this.failOnDeactivate = false});
 
   final bool failOnSave;
+  final bool failOnDeactivate;
   final courses = <CourseEntry>[];
 
   @override
   Future<CourseEntry> createCourse(CourseDraft draft) async {
     if (failOnSave) throw const CourseException('Fallo controlado');
     final course = CourseEntry(
-      id: 'course-1',
+      id: 1,
       name: draft.name,
       level: draft.level,
       parallel: draft.parallel,
@@ -116,7 +172,7 @@ class _CourseRepository implements CourseRepository {
   Future<List<CourseEntry>> getCourses({String? search}) async => courses;
 
   @override
-  Future<CourseEntry> updateCourse(String id, CourseDraft draft) async {
+  Future<CourseEntry> updateCourse(int id, CourseDraft draft) async {
     final index = courses.indexWhere((course) => course.id == id);
     if (index < 0) throw const CourseException('Curso no encontrado');
     final current = courses[index];
@@ -135,16 +191,19 @@ class _CourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateCourse(String id) async {
+  Future<void> deactivateCourse(int id) async {
+    if (failOnDeactivate) {
+      throw const CourseException('Existen dependencias activas');
+    }
     courses.removeWhere((course) => course.id == id);
   }
 
   @override
   Future<CourseSchedule> createSchedule(
-    String courseId,
+    int courseId,
     ScheduleDraft draft,
   ) async {
-    final schedule = _scheduleFromDraft('schedule-1', draft);
+    final schedule = _scheduleFromDraft(1, draft);
     _replaceSchedules(courseId, [
       ...courses.singleWhere((course) => course.id == courseId).schedules,
       schedule,
@@ -154,8 +213,8 @@ class _CourseRepository implements CourseRepository {
 
   @override
   Future<CourseSchedule> updateSchedule(
-    String courseId,
-    String scheduleId,
+    int courseId,
+    int scheduleId,
     ScheduleDraft draft,
   ) async {
     final updated = _scheduleFromDraft(scheduleId, draft);
@@ -168,7 +227,7 @@ class _CourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateSchedule(String courseId, String scheduleId) async {
+  Future<void> deactivateSchedule(int courseId, int scheduleId) async {
     final current = courses.singleWhere((course) => course.id == courseId);
     _replaceSchedules(
       courseId,
@@ -176,7 +235,7 @@ class _CourseRepository implements CourseRepository {
     );
   }
 
-  CourseSchedule _scheduleFromDraft(String id, ScheduleDraft draft) =>
+  CourseSchedule _scheduleFromDraft(int id, ScheduleDraft draft) =>
       CourseSchedule(
         id: id,
         shift: draft.shift,
@@ -185,7 +244,7 @@ class _CourseRepository implements CourseRepository {
         timeZone: draft.timeZone,
       );
 
-  void _replaceSchedules(String courseId, List<CourseSchedule> schedules) {
+  void _replaceSchedules(int courseId, List<CourseSchedule> schedules) {
     final index = courses.indexWhere((course) => course.id == courseId);
     if (index < 0) throw const CourseException('Curso no encontrado');
     courses[index] = courses[index].copyWith(schedules: schedules);

@@ -24,18 +24,21 @@ class AdaptiveShell extends ConsumerWidget {
       '/inicio',
       LucideIcons.house,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'DOCENTE', 'REGENTE'},
     ),
     _NavItem(
       'Escanear',
       '/escaner',
       LucideIcons.scanLine,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'REGENTE'},
     ),
     _NavItem(
       'Asistencia',
       '/asistencia',
       LucideIcons.clipboardCheck,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'DOCENTE', 'REGENTE'},
     ),
     _NavItem(
       'Estudiantes',
@@ -78,7 +81,7 @@ class AdaptiveShell extends ConsumerWidget {
       '/credenciales',
       LucideIcons.idCard,
       section: _NavSection.reports,
-      administratorOnly: true,
+      allowedRoles: {'ADMINISTRADOR'},
     ),
     _NavItem(
       'Reportes',
@@ -94,18 +97,21 @@ class AdaptiveShell extends ConsumerWidget {
       '/inicio',
       LucideIcons.house,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'DOCENTE', 'REGENTE'},
     ),
     _NavItem(
       'Escanear',
       '/escaner',
       LucideIcons.scanLine,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'REGENTE'},
     ),
     _NavItem(
       'Asistencia',
       '/asistencia',
       LucideIcons.clipboardCheck,
       section: _NavSection.access,
+      allowedRoles: {'ADMINISTRADOR', 'DOCENTE', 'REGENTE'},
     ),
   ];
 
@@ -153,16 +159,14 @@ class AdaptiveShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wide = MediaQuery.sizeOf(context).width >= 840;
-    final administrator = ref.watch(
-      sessionViewModelProvider.select(
-        (session) => session.user?.isAdministrator == true,
-      ),
+    final role = ref.watch(
+      sessionViewModelProvider.select((session) => session.user?.role),
     );
     final mobileItems = _mobileItems
-        .where((item) => administrator || !item.administratorOnly)
+        .where((item) => item.allows(role))
         .toList();
     final desktopItems = _desktopItems
-        .where((item) => administrator || !item.administratorOnly)
+        .where((item) => item.allows(role))
         .toList();
     final managementPage =
         _matchesRoute('/estudiantes') ||
@@ -671,6 +675,10 @@ class _DesktopNavigationState extends ConsumerState<_DesktopNavigation> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionViewModelProvider).user;
+    final accessItems = _itemsFor(_NavSection.access);
+    final managementItems = _itemsFor(_NavSection.management);
+    final catalogItems = _itemsFor(_NavSection.catalogs);
+    final reportItems = _itemsFor(_NavSection.reports);
     return SizedBox(
       width: 220,
       child: ColoredBox(
@@ -733,36 +741,44 @@ class _DesktopNavigationState extends ConsumerState<_DesktopNavigation> {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 8),
                   children: [
-                    const _DesktopSectionLabel(label: 'ACCESOS'),
-                    for (final item in _itemsFor(_NavSection.access))
-                      _DesktopNavTile(
-                        item: item,
-                        selected: _isSelected(item),
-                        onTap: () => _select(item),
+                    if (accessItems.isNotEmpty) ...[
+                      const _DesktopSectionLabel(label: 'ACCESOS'),
+                      for (final item in accessItems)
+                        _DesktopNavTile(
+                          item: item,
+                          selected: _isSelected(item),
+                          onTap: () => _select(item),
+                        ),
+                    ],
+                    if (managementItems.isNotEmpty) ...[
+                      const _DesktopSectionLabel(label: 'GESTIÓN'),
+                      for (final item in managementItems)
+                        _DesktopNavTile(
+                          item: item,
+                          selected: _isSelected(item),
+                          onTap: () => _select(item),
+                        ),
+                    ],
+                    if (catalogItems.isNotEmpty)
+                      _DesktopCatalogGroup(
+                        items: catalogItems,
+                        expanded: catalogsExpanded,
+                        selected: _selectedSection == _NavSection.catalogs,
+                        isSelected: _isSelected,
+                        onToggle: () => setState(
+                          () => catalogsExpanded = !catalogsExpanded,
+                        ),
+                        onSelected: _select,
                       ),
-                    const _DesktopSectionLabel(label: 'GESTIÓN'),
-                    for (final item in _itemsFor(_NavSection.management))
-                      _DesktopNavTile(
-                        item: item,
-                        selected: _isSelected(item),
-                        onTap: () => _select(item),
-                      ),
-                    _DesktopCatalogGroup(
-                      items: _itemsFor(_NavSection.catalogs),
-                      expanded: catalogsExpanded,
-                      selected: _selectedSection == _NavSection.catalogs,
-                      isSelected: _isSelected,
-                      onToggle: () =>
-                          setState(() => catalogsExpanded = !catalogsExpanded),
-                      onSelected: _select,
-                    ),
-                    const _DesktopSectionLabel(label: 'CONSULTAS'),
-                    for (final item in _itemsFor(_NavSection.reports))
-                      _DesktopNavTile(
-                        item: item,
-                        selected: _isSelected(item),
-                        onTap: () => _select(item),
-                      ),
+                    if (reportItems.isNotEmpty) ...[
+                      const _DesktopSectionLabel(label: 'CONSULTAS'),
+                      for (final item in reportItems)
+                        _DesktopNavTile(
+                          item: item,
+                          selected: _isSelected(item),
+                          onTap: () => _select(item),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -918,11 +934,13 @@ class _NavItem {
     this.route,
     this.icon, {
     required this.section,
-    this.administratorOnly = false,
+    this.allowedRoles = const {'ADMINISTRADOR', 'DOCENTE'},
   });
   final String label;
   final String route;
   final IconData icon;
   final _NavSection section;
-  final bool administratorOnly;
+  final Set<String> allowedRoles;
+
+  bool allows(String? role) => role != null && allowedRoles.contains(role);
 }

@@ -5,7 +5,6 @@ import 'package:asisteqr_baker/app/theme/app_colors.dart';
 import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
 import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
 import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
-import 'package:asisteqr_baker/core/widgets/status_badge.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
 import 'package:asisteqr_baker/features/attendance/presentation/desktop_camera_scanner_stub.dart'
     if (dart.library.io) 'package:asisteqr_baker/features/attendance/presentation/desktop_camera_scanner_native.dart';
@@ -15,12 +14,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 final scannerViewModelProvider = ChangeNotifierProvider.autoDispose(
-  (ref) => ScannerViewModel(ref.watch(attendanceRepositoryProvider)),
+  (ref) =>
+      ScannerViewModel(ref.watch(attendanceRepositoryProvider))..loadShifts(),
 );
 
 class ScannerPage extends ConsumerStatefulWidget {
@@ -164,8 +163,13 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
     final failure = ref.read(scannerViewModelProvider).failure!;
     final title = switch (failure.kind) {
       AttendanceFailureKind.unreadableQr => 'Código ilegible',
-      AttendanceFailureKind.inactiveStudent => 'Credencial inactiva',
+      AttendanceFailureKind.inactiveStudent => 'Estudiante inactivo',
       AttendanceFailureKind.studentNotFound => 'Estudiante no encontrado',
+      AttendanceFailureKind.missingEnrollment => 'Sin inscripción activa',
+      AttendanceFailureKind.missingSchedule => 'Sin horario de ingreso',
+      AttendanceFailureKind.missingShift => 'Selecciona una jornada',
+      AttendanceFailureKind.missingScheduleConfiguration =>
+        'Jornada no configurada',
       AttendanceFailureKind.unauthorized => 'Acceso denegado',
       AttendanceFailureKind.network => 'Sin conexión',
       _ => manual ? 'No se registró la asistencia' : 'QR no registrado',
@@ -179,6 +183,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
   }
 
   Future<void> _manualEntry() async {
+    if (ref.read(scannerViewModelProvider).selectedShift == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Selecciona la jornada antes del ingreso manual.'),
+          ),
+        );
+      return;
+    }
     _readabilityTimer?.cancel();
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final studentCode = await showDialog<int>(
@@ -224,6 +238,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
           return Stack(
             children: [
               Positioned.fill(child: workspace),
+              Positioned(
+                top: 0,
+                left: 12,
+                child: SafeArea(child: _ShiftSelector(model: model)),
+              ),
               if (model.phase == ScanPhase.validating)
                 Positioned.fill(
                   child: ColoredBox(
@@ -335,6 +354,81 @@ class _ScannerPageState extends ConsumerState<ScannerPage>
       ),
     );
   }
+}
+
+class _ShiftSelector extends StatelessWidget {
+  const _ShiftSelector({required this.model});
+
+  final ScannerViewModel model;
+
+  @override
+  Widget build(BuildContext context) {
+    if (model.loadingShifts) {
+      return const _ShiftSelectorSurface(
+        child: SizedBox(
+          width: 190,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 10),
+              Text('Cargando jornadas…'),
+            ],
+          ),
+        ),
+      );
+    }
+    if (model.shiftsError != null) {
+      return _ShiftSelectorSurface(
+        child: OutlinedButton.icon(
+          onPressed: model.loadShifts,
+          icon: const Icon(LucideIcons.refreshCw, size: 17),
+          label: const Text('Reintentar jornadas'),
+        ),
+      );
+    }
+    return _ShiftSelectorSurface(
+      child: SizedBox(
+        width: 220,
+        child: DropdownButtonFormField<AttendanceShift>(
+          key: ValueKey(model.selectedShift),
+          initialValue: model.selectedShift,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Jornada de registro',
+            prefixIcon: Icon(LucideIcons.clock3, size: 17),
+          ),
+          hint: Text(
+            model.availableShifts.isEmpty
+                ? 'Sin jornadas activas'
+                : 'Seleccionar jornada',
+          ),
+          items: [
+            for (final shift in model.availableShifts)
+              DropdownMenuItem(value: shift, child: Text(shift.label)),
+          ],
+          onChanged: model.availableShifts.isEmpty ? null : model.selectShift,
+        ),
+      ),
+    );
+  }
+}
+
+class _ShiftSelectorSurface extends StatelessWidget {
+  const _ShiftSelectorSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    elevation: 3,
+    borderRadius: BorderRadius.circular(8),
+    child: Padding(padding: const EdgeInsets.all(8), child: child),
+  );
 }
 
 class _ManualAttendanceDialog extends StatefulWidget {
@@ -630,108 +724,57 @@ class _RecentScans extends StatelessWidget {
   const _RecentScans({required this.onManual});
   final VoidCallback onManual;
   @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final records = [
-      AttendanceRecord(
-        id: 'r1',
-        student: const Student(
-          id: '1',
-          code: 'EST-01',
-          fullName: 'García, Carlos',
-          course: '4.º A · Matemáticas',
-        ),
-        timestamp: now,
-        status: AttendanceStatus.punctual,
-      ),
-      AttendanceRecord(
-        id: 'r2',
-        student: const Student(
-          id: '2',
-          code: 'EST-02',
-          fullName: 'Martínez, Ana',
-          course: '4.º A · Matemáticas',
-        ),
-        timestamp: now,
-        status: AttendanceStatus.late,
-      ),
-    ];
-    return Material(
-      color: AppColors.canvas,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Últimos registros',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+  Widget build(BuildContext context) => Material(
+    color: AppColors.canvas,
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Últimos registros',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              TextButton.icon(
-                onPressed: onManual,
-                icon: const Icon(LucideIcons.keyboard, size: 15),
-                label: const Text('Ingreso manual'),
+            ),
+            TextButton.icon(
+              onPressed: onManual,
+              icon: const Icon(LucideIcons.keyboard, size: 15),
+              label: const Text('Ingreso manual'),
+            ),
+          ],
+        ),
+        Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                LucideIcons.scanLine,
+                size: 28,
+                color: AppColors.inkMuted,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Aún no hay registros en esta sesión',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Las asistencias confirmadas se consultan desde la vista de Asistencia.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
-          for (final record in records)
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.fromLTRB(9, 9, 9, 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 44,
-                    margin: const EdgeInsets.only(right: 9),
-                    decoration: BoxDecoration(
-                      color: record.status == AttendanceStatus.punctual
-                          ? AppColors.green
-                          : AppColors.amber,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const CircleAvatar(
-                    radius: 17,
-                    backgroundColor: AppColors.blueSoft,
-                    child: Icon(
-                      LucideIcons.userRound,
-                      size: 16,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          record.student.fullName,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '${DateFormat('HH:mm').format(record.timestamp)} · ${record.student.course}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  StatusBadge(status: record.status),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }

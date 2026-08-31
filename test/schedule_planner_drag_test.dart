@@ -125,21 +125,17 @@ void main() {
 
 class _PlannerRepository implements SchedulePlannerRepository {
   @override
-  Future<void> deactivateClassroom(String id) async {}
+  Future<void> deactivateClassroom(int id) async {}
 
   @override
-  Future<void> deactivateSubject(String id) async {}
+  Future<void> deactivateSubject(int id) async {}
 
   @override
   Future<SchedulePlannerData> getPlanner() async => const SchedulePlannerData(
-    period: SchedulePeriod(
-      id: 'period-1',
-      name: 'Segundo semestre',
-      year: 2026,
-    ),
+    period: SchedulePeriod(id: 1, name: 'Segundo semestre', year: 2026),
     config: GeneralScheduleConfig(
-      id: 'config-1',
-      periodId: 'period-1',
+      id: 1,
+      periodId: 1,
       startTime: '07:30',
       endTime: '20:00',
       intervalMinutes: 30,
@@ -148,12 +144,12 @@ class _PlannerRepository implements SchedulePlannerRepository {
       version: 1,
     ),
     breaks: [],
-    courses: [ScheduleCourse(id: 'course-1', name: '4.º Secundaria B')],
-    subjects: [ScheduleSubject(id: 'subject-1', name: 'Matemática')],
-    classrooms: [ScheduleClassroom(id: 'classroom-1', name: 'Aula 4')],
+    courses: [ScheduleCourse(id: 1, name: '4.º Secundaria B')],
+    subjects: [ScheduleSubject(id: 1, name: 'Matemática')],
+    classrooms: [ScheduleClassroom(id: 1, name: 'Aula 4')],
     teachers: [
       ScheduleTeacher(
-        id: 'teacher-1',
+        id: 1,
         code: 1,
         fullName: 'María Elena Rodríguez Flores',
         specialty: 'Matemática y Física',
@@ -161,10 +157,10 @@ class _PlannerRepository implements SchedulePlannerRepository {
     ],
     assignments: [
       AcademicAssignment(
-        id: 'assignment-1',
-        courseId: 'course-1',
-        subjectId: 'subject-1',
-        teacherId: 'teacher-1',
+        id: 1,
+        courseId: 1,
+        subjectId: 1,
+        teacherId: 1,
         weeklyMinutes: 300,
       ),
     ],
@@ -172,14 +168,15 @@ class _PlannerRepository implements SchedulePlannerRepository {
   );
 
   @override
-  Future<void> saveGeneralConfig(GeneralScheduleDraft draft) async {}
+  Future<int> saveGeneralConfig(GeneralScheduleDraft draft) async =>
+      draft.version + 1;
 
   @override
   Future<ScheduleClassroom> saveClassroom(
     ScheduleClassroomDraft draft, {
-    String? id,
+    int? id,
   }) async => ScheduleClassroom(
-    id: id ?? 'classroom-new',
+    id: id ?? 2,
     name: draft.name,
     capacity: draft.capacity,
     location: draft.location,
@@ -187,17 +184,17 @@ class _PlannerRepository implements SchedulePlannerRepository {
 
   @override
   Future<int> savePlanner({
-    required String periodId,
+    required int periodId,
     required int version,
     required List<AcademicAssignment> assignments,
     required List<PlannerScheduleBlock> blocks,
-    required Set<String> removedAssignmentIds,
-    required Set<String> removedBlockIds,
+    required Set<int> removedAssignmentIds,
+    required Set<int> removedBlockIds,
   }) async => version + 1;
 
   @override
   Future<ScheduleSubject> saveSubject(
     ScheduleSubjectDraft draft, {
-    String? id,
-  }) async => ScheduleSubject(id: id ?? 'subject-new', name: draft.name);
+    int? id,
+  }) async => ScheduleSubject(id: id ?? 2, name: draft.name);
 }

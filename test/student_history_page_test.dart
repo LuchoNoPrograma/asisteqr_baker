@@ -57,9 +57,7 @@ Future<void> _pumpHistory(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [attendanceRepositoryProvider.overrideWithValue(repository)],
-      child: const MaterialApp(
-        home: StudentHistoryPage(studentId: 'student-test'),
-      ),
+      child: const MaterialApp(home: StudentHistoryPage(studentId: 1)),
     ),
   );
   await tester.pumpAndSettle();
@@ -67,7 +65,7 @@ Future<void> _pumpHistory(
 
 class _EmptyHistoryRepository extends MockAttendanceRepository {
   @override
-  Future<List<AttendanceRecord>> getStudentHistory(String studentId) async =>
+  Future<List<AttendanceRecord>> getStudentHistory(int studentId) async =>
       const [];
 }
 
@@ -75,7 +73,7 @@ class _FailingHistoryRepository extends MockAttendanceRepository {
   int requests = 0;
 
   @override
-  Future<List<AttendanceRecord>> getStudentHistory(String studentId) async {
+  Future<List<AttendanceRecord>> getStudentHistory(int studentId) async {
     requests++;
     throw const AttendanceException(
       AttendanceFailureKind.network,
@@ -85,13 +83,13 @@ class _FailingHistoryRepository extends MockAttendanceRepository {
 }
 
 class _LoadedHistoryRepository extends MockAttendanceRepository {
-  String? requestedStudentId;
+  int? requestedStudentId;
 
   @override
-  Future<List<AttendanceRecord>> getStudentHistory(String studentId) async {
+  Future<List<AttendanceRecord>> getStudentHistory(int studentId) async {
     requestedStudentId = studentId;
     const student = Student(
-      id: 'student-test',
+      id: 1,
       code: 'EST-2026-0148',
       fullName: 'Valeria Mendoza Rojas',
       course: '4.º Secundaria B',
@@ -99,13 +97,13 @@ class _LoadedHistoryRepository extends MockAttendanceRepository {
     );
     return [
       AttendanceRecord(
-        id: 'history-1',
+        id: 1,
         student: student,
         timestamp: DateTime(2026, 8, 8, 7, 50),
         status: AttendanceStatus.punctual,
       ),
       AttendanceRecord(
-        id: 'history-2',
+        id: 2,
         student: student,
         timestamp: DateTime(2026, 8, 7, 8, 12),
         status: AttendanceStatus.late,

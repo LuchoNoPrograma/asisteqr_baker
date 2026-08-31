@@ -9,19 +9,19 @@ class AcademicAssignment {
     required this.weeklyMinutes,
   });
 
-  final String? id;
-  final String courseId;
-  final String subjectId;
-  final String teacherId;
+  final int? id;
+  final int courseId;
+  final int subjectId;
+  final int teacherId;
   final int weeklyMinutes;
 
   String get key => '$courseId|$subjectId|$teacherId';
 
   AcademicAssignment copyWith({
-    String? id,
-    String? courseId,
-    String? subjectId,
-    String? teacherId,
+    int? id,
+    int? courseId,
+    int? subjectId,
+    int? teacherId,
     int? weeklyMinutes,
   }) => AcademicAssignment(
     id: id ?? this.id,
@@ -44,11 +44,11 @@ class PlannerScheduleBlock {
     required this.endTime,
   });
 
-  final String? id;
-  final String courseId;
-  final String subjectId;
-  final String teacherId;
-  final String classroomId;
+  final int? id;
+  final int courseId;
+  final int subjectId;
+  final int teacherId;
+  final int classroomId;
   final int weekday;
   final String startTime;
   final String endTime;
@@ -58,11 +58,11 @@ class PlannerScheduleBlock {
   int get durationMinutes => endMinutes - startMinutes;
 
   PlannerScheduleBlock copyWith({
-    String? id,
-    String? courseId,
-    String? subjectId,
-    String? teacherId,
-    String? classroomId,
+    int? id,
+    int? courseId,
+    int? subjectId,
+    int? teacherId,
+    int? classroomId,
     int? weekday,
     String? startTime,
     String? endTime,
@@ -89,6 +89,7 @@ class SchedulePlannerData {
     required this.teachers,
     required this.assignments,
     required this.blocks,
+    this.configurationPending = false,
   });
 
   final SchedulePeriod period;
@@ -100,20 +101,27 @@ class SchedulePlannerData {
   final List<ScheduleTeacher> teachers;
   final List<AcademicAssignment> assignments;
   final List<PlannerScheduleBlock> blocks;
+  final bool configurationPending;
 
   SchedulePlannerData copyWith({
+    GeneralScheduleConfig? config,
+    List<ScheduleBreak>? breaks,
     List<ScheduleSubject>? subjects,
     List<ScheduleClassroom>? classrooms,
+    List<AcademicAssignment>? assignments,
+    List<PlannerScheduleBlock>? blocks,
+    bool? configurationPending,
   }) => SchedulePlannerData(
     period: period,
-    config: config,
-    breaks: breaks,
+    config: config ?? this.config,
+    breaks: breaks ?? this.breaks,
     courses: courses,
     subjects: subjects ?? this.subjects,
     classrooms: classrooms ?? this.classrooms,
     teachers: teachers,
-    assignments: assignments,
-    blocks: blocks,
+    assignments: assignments ?? this.assignments,
+    blocks: blocks ?? this.blocks,
+    configurationPending: configurationPending ?? this.configurationPending,
   );
 }
 
@@ -145,7 +153,7 @@ class PlannerBlockDraft {
   });
 
   final AcademicAssignment assignment;
-  final String classroomId;
+  final int classroomId;
   final int weekday;
   final int startMinutes;
   final int endMinutes;

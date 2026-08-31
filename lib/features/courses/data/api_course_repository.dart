@@ -29,10 +29,10 @@ class ApiCourseRepository implements CourseRepository {
       _saveCourse(null, draft);
 
   @override
-  Future<CourseEntry> updateCourse(String id, CourseDraft draft) =>
+  Future<CourseEntry> updateCourse(int id, CourseDraft draft) =>
       _saveCourse(id, draft);
 
-  Future<CourseEntry> _saveCourse(String? id, CourseDraft draft) async {
+  Future<CourseEntry> _saveCourse(int? id, CourseDraft draft) async {
     try {
       final data = {
         'nombre': draft.name,
@@ -53,7 +53,7 @@ class ApiCourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateCourse(String id) async {
+  Future<void> deactivateCourse(int id) async {
     try {
       await _client.dio.delete<void>('/cursos/$id');
     } on DioException catch (error) {
@@ -62,19 +62,19 @@ class ApiCourseRepository implements CourseRepository {
   }
 
   @override
-  Future<CourseSchedule> createSchedule(String courseId, ScheduleDraft draft) =>
+  Future<CourseSchedule> createSchedule(int courseId, ScheduleDraft draft) =>
       _saveSchedule(courseId, null, draft);
 
   @override
   Future<CourseSchedule> updateSchedule(
-    String courseId,
-    String scheduleId,
+    int courseId,
+    int scheduleId,
     ScheduleDraft draft,
   ) => _saveSchedule(courseId, scheduleId, draft);
 
   Future<CourseSchedule> _saveSchedule(
-    String courseId,
-    String? scheduleId,
+    int courseId,
+    int? scheduleId,
     ScheduleDraft draft,
   ) async {
     try {
@@ -95,7 +95,7 @@ class ApiCourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateSchedule(String courseId, String scheduleId) async {
+  Future<void> deactivateSchedule(int courseId, int scheduleId) async {
     try {
       await _client.dio.delete<void>('/cursos/$courseId/horarios/$scheduleId');
     } on DioException catch (error) {
@@ -106,7 +106,7 @@ class ApiCourseRepository implements CourseRepository {
   }
 
   CourseEntry _course(Map<String, dynamic> json) => CourseEntry(
-    id: '${json['id']}',
+    id: (json['id'] as num).toInt(),
     name: '${json['nombre']}',
     level: '${json['nivel']}',
     parallel: '${json['paralelo']}',
@@ -119,7 +119,7 @@ class ApiCourseRepository implements CourseRepository {
   );
 
   CourseSchedule _schedule(Map<String, dynamic> json) => CourseSchedule(
-    id: '${json['id']}',
+    id: (json['id'] as num).toInt(),
     shift: '${json['jornada']}',
     deadline: '${json['horaLimite']}',
     toleranceMinutes: (json['toleranciaMinutos'] as num).toInt(),

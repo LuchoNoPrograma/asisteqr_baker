@@ -1,5 +1,6 @@
 import 'package:asisteqr_baker/features/attendance/data/mock_attendance_repository.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
+import 'package:asisteqr_baker/features/attendance/presentation/scanner_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -12,6 +13,7 @@ void main() {
     () async {
       final result = await repository.registerQr(
         'AQB1.test_attendance_fixture',
+        AttendanceShift.morning,
       );
 
       expect(result.duplicate, isFalse);
@@ -26,9 +28,23 @@ void main() {
     },
   );
 
+  test('selecciona automaticamente la unica jornada operativa', () async {
+    final model = ScannerViewModel(
+      MockAttendanceRepository(
+        availableShifts: const [AttendanceShift.afternoon],
+      ),
+    );
+
+    await model.loadShifts();
+    final result = await model.submitManual(148);
+
+    expect(model.selectedShift, AttendanceShift.afternoon);
+    expect(result?.record.shift, AttendanceShift.afternoon);
+  });
+
   test('CP-03 rechaza un QR no registrado sin devolver asistencia', () async {
     expect(
-      () => repository.registerQr('QR-INVALIDO'),
+      () => repository.registerQr('QR-INVALIDO', AttendanceShift.morning),
       throwsA(
         isA<AttendanceException>().having(
           (error) => error.kind,
@@ -40,7 +56,10 @@ void main() {
   });
 
   test('CP-05 identifica el duplicado y conserva la hora original', () async {
-    final result = await repository.registerQr('QR-DUPLICADO');
+    final result = await repository.registerQr(
+      'QR-DUPLICADO',
+      AttendanceShift.morning,
+    );
 
     expect(result.duplicate, isTrue);
     expect(result.originalTimestamp, isNotNull);
@@ -48,7 +67,7 @@ void main() {
 
   test('CP-14 solicita reintento cuando el QR esta danado', () async {
     expect(
-      () => repository.registerQr('QR-DAÑADO'),
+      () => repository.registerQr('QR-DAÑADO', AttendanceShift.morning),
       throwsA(
         isA<AttendanceException>().having(
           (error) => error.kind,
@@ -79,9 +98,9 @@ void main() {
       expect(
         records.every(
           (record) =>
-              record.timestamp.year == selectedDate.year &&
-              record.timestamp.month == selectedDate.month &&
-              record.timestamp.day == selectedDate.day,
+              record.timestamp!.year == selectedDate.year &&
+              record.timestamp!.month == selectedDate.month &&
+              record.timestamp!.day == selectedDate.day,
         ),
         isTrue,
       );

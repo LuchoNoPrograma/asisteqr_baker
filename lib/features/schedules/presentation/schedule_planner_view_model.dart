@@ -12,13 +12,22 @@ class SchedulePlannerViewModel extends ChangeNotifier {
   SchedulePlannerData? data;
   List<AcademicAssignment> assignments = const [];
   List<PlannerScheduleBlock> blocks = const [];
-  final Set<String> removedAssignmentIds = {};
-  final Set<String> removedBlockIds = {};
+  final Set<int> removedAssignmentIds = {};
+  final Set<int> removedBlockIds = {};
+  final List<_PlannerDraftSnapshot> _undo = [];
+  final List<_PlannerDraftSnapshot> _redo = [];
+  _PlannerDraftSnapshot? _original;
   bool loading = false;
   bool saving = false;
   bool catalogSaving = false;
   bool dirty = false;
+  bool refreshPending = false;
   String? error;
+  String? refreshMessage;
+  SchedulePlannerSaveException? conflict;
+
+  bool get canUndo => _undo.isNotEmpty && !saving && !refreshPending;
+  bool get canRedo => _redo.isNotEmpty && !saving && !refreshPending;
 
   Future<void> load() async {
     loading = true;
@@ -43,10 +52,27 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       )
       .fold(0, (total, item) => total + item.durationMinutes);
 
+  int pendingMinutes(AcademicAssignment assignment) {
+    final difference = assignment.weeklyMinutes - scheduledMinutes(assignment);
+    return difference < 0 ? 0 : difference;
+  }
+
+  bool blockHasConflict(PlannerScheduleBlock block) {
+    final value = conflict;
+    if (value == null || value.weekday != block.weekday) return false;
+    final start = value.startTime;
+    final end = value.endTime;
+    if (start == null || end == null) return true;
+    return scheduleTimeToMinutes(start) < block.endMinutes &&
+        scheduleTimeToMinutes(end) > block.startMinutes;
+  }
+
   bool saveAssignment(
     AcademicAssignment assignment, {
     AcademicAssignment? current,
+    bool recordHistory = true,
   }) {
+    if (!_ensureEditable()) return false;
     final duplicate = assignments.any(
       (item) =>
           !identical(item, current) &&
@@ -58,6 +84,7 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (recordHistory) _remember();
     assignments = List.unmodifiable(
       current == null
           ? [...assignments, assignment]
@@ -84,9 +111,9 @@ class SchedulePlannerViewModel extends ChangeNotifier {
         ),
       );
     }
-    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
     error = null;
+    conflict = null;
     notifyListeners();
     return true;
   }
@@ -94,16 +121,19 @@ class SchedulePlannerViewModel extends ChangeNotifier {
   Future<bool> persistAssignment(
     AcademicAssignment assignment, {
     AcademicAssignment? current,
-  }) => _persistMutation(() => saveAssignment(assignment, current: current));
+  }) async => saveAssignment(assignment, current: current);
 
   Future<bool> persistClass(
     AcademicAssignment assignment,
     PlannerBlockDraft draft, {
     AcademicAssignment? currentAssignment,
     PlannerScheduleBlock? currentBlock,
-  }) => _persistMutation(() {
+  }) async {
+    final before = _snapshot();
     if (currentBlock != null) {
-      if (!saveBlock(draft, current: currentBlock)) return false;
+      if (!saveBlock(draft, current: currentBlock, recordHistory: false)) {
+        return false;
+      }
       AcademicAssignment? refreshedCurrent;
       if (currentAssignment != null) {
         for (final item in assignments) {
@@ -115,13 +145,32 @@ class SchedulePlannerViewModel extends ChangeNotifier {
           }
         }
       }
-      return saveAssignment(assignment, current: refreshedCurrent);
+      if (!saveAssignment(
+        assignment,
+        current: refreshedCurrent,
+        recordHistory: false,
+      )) {
+        final message = error;
+        _restoreSnapshot(before);
+        error = message;
+        notifyListeners();
+        return false;
+      }
+      _rememberSnapshot(before);
+      notifyListeners();
+      return true;
     }
-    if (!saveAssignment(assignment, current: currentAssignment)) return false;
+    if (!saveAssignment(
+      assignment,
+      current: currentAssignment,
+      recordHistory: false,
+    )) {
+      return false;
+    }
     final savedAssignment = assignments.firstWhere(
       (item) => item.key == assignment.key,
     );
-    return saveBlock(
+    if (!saveBlock(
       PlannerBlockDraft(
         assignment: savedAssignment,
         classroomId: draft.classroomId,
@@ -129,10 +178,26 @@ class SchedulePlannerViewModel extends ChangeNotifier {
         startMinutes: draft.startMinutes,
         endMinutes: draft.endMinutes,
       ),
-    );
-  });
+      recordHistory: false,
+    )) {
+      final message = error;
+      _restoreSnapshot(before);
+      error = message;
+      notifyListeners();
+      return false;
+    }
+    _rememberSnapshot(before);
+    notifyListeners();
+    return true;
+  }
 
-  void removeAssignment(AcademicAssignment assignment) {
+  void removeAssignment(
+    AcademicAssignment assignment, {
+    bool recordHistory = true,
+  }) {
+    if (!_ensureEditable()) return;
+    if (!assignments.contains(assignment)) return;
+    if (recordHistory) _remember();
     if (assignment.id != null) removedAssignmentIds.add(assignment.id!);
     final related = blocks.where(
       (item) =>
@@ -155,16 +220,21 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       ),
     );
     dirty = true;
+    conflict = null;
     notifyListeners();
   }
 
-  Future<bool> persistRemoveAssignment(AcademicAssignment assignment) =>
-      _persistMutation(() {
-        removeAssignment(assignment);
-        return true;
-      });
+  Future<bool> persistRemoveAssignment(AcademicAssignment assignment) async {
+    removeAssignment(assignment);
+    return true;
+  }
 
-  bool saveBlock(PlannerBlockDraft draft, {PlannerScheduleBlock? current}) {
+  bool saveBlock(
+    PlannerBlockDraft draft, {
+    PlannerScheduleBlock? current,
+    bool recordHistory = true,
+  }) {
+    if (!_ensureEditable()) return false;
     final loaded = data;
     if (loaded == null || draft.endMinutes <= draft.startMinutes) return false;
     if (draft.startMinutes < loaded.config.startMinutes ||
@@ -180,7 +250,7 @@ class SchedulePlannerViewModel extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final conflict = blocks.any(
+    final hasLocalConflict = blocks.any(
       (item) =>
           !identical(item, current) &&
           item.weekday == draft.weekday &&
@@ -190,11 +260,12 @@ class SchedulePlannerViewModel extends ChangeNotifier {
               item.courseId == draft.assignment.courseId ||
               item.classroomId == draft.classroomId),
     );
-    if (conflict) {
+    if (hasLocalConflict) {
       error = 'El docente, curso o aula ya está ocupado en ese rango.';
       notifyListeners();
       return false;
     }
+    if (recordHistory) _remember();
     final block = PlannerScheduleBlock(
       id: current?.id,
       courseId: draft.assignment.courseId,
@@ -212,9 +283,9 @@ class SchedulePlannerViewModel extends ChangeNotifier {
               .toList();
     updatedBlocks.sort(_compareBlocks);
     blocks = List.unmodifiable(updatedBlocks);
-    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
     error = null;
+    conflict = null;
     notifyListeners();
     return true;
   }
@@ -222,30 +293,34 @@ class SchedulePlannerViewModel extends ChangeNotifier {
   Future<bool> persistBlock(
     PlannerBlockDraft draft, {
     PlannerScheduleBlock? current,
-  }) => _persistMutation(() => saveBlock(draft, current: current));
+  }) async => saveBlock(draft, current: current);
 
-  void removeBlock(PlannerScheduleBlock block) {
+  void removeBlock(PlannerScheduleBlock block, {bool recordHistory = true}) {
+    if (!_ensureEditable()) return;
+    if (!blocks.contains(block)) return;
+    if (recordHistory) _remember();
     if (block.id != null) removedBlockIds.add(block.id!);
     blocks = List.unmodifiable(blocks.where((item) => !identical(item, block)));
-    _synchronizeAutomaticWeeklyMinutes();
     dirty = true;
+    conflict = null;
     notifyListeners();
   }
 
-  Future<bool> persistRemoveBlock(PlannerScheduleBlock block) =>
-      _persistMutation(() {
-        removeBlock(block);
-        return true;
-      });
+  Future<bool> persistRemoveBlock(PlannerScheduleBlock block) async {
+    removeBlock(block);
+    return true;
+  }
 
   Future<bool> save() async {
     final loaded = data;
-    if (loaded == null || saving || !dirty) return false;
+    if (loaded == null || saving || refreshPending || !dirty) return false;
     saving = true;
     error = null;
+    refreshMessage = null;
+    conflict = null;
     notifyListeners();
     try {
-      await _repository.savePlanner(
+      final version = await _repository.savePlanner(
         periodId: loaded.period.id,
         version: loaded.config.version,
         assignments: assignments,
@@ -253,44 +328,23 @@ class SchedulePlannerViewModel extends ChangeNotifier {
         removedAssignmentIds: removedAssignmentIds,
         removedBlockIds: removedBlockIds,
       );
-      _setLoaded(await _repository.getPlanner());
-      return true;
-    } on TeachingScheduleException catch (exception) {
+      _markPlannerCommitted(version);
+    } on SchedulePlannerSaveException catch (exception) {
+      conflict = exception;
       error = exception.message;
-      return false;
-    } finally {
       saving = false;
       notifyListeners();
-    }
-  }
-
-  Future<bool> _persistMutation(bool Function() mutate) async {
-    if (saving) {
-      error = 'Espere a que termine el cambio anterior.';
+      return false;
+    } on TeachingScheduleException catch (exception) {
+      error = exception.message;
+      saving = false;
       notifyListeners();
       return false;
     }
-    final snapshot = _PlannerDraftSnapshot(
-      assignments: assignments,
-      blocks: blocks,
-      removedAssignmentIds: Set.of(removedAssignmentIds),
-      removedBlockIds: Set.of(removedBlockIds),
-      dirty: dirty,
-    );
-    if (!mutate()) {
-      final mutationError = error;
-      _restoreSnapshot(snapshot);
-      error = mutationError;
-      notifyListeners();
-      return false;
-    }
-    if (await save()) return true;
-
-    final persistenceError = error;
-    _restoreSnapshot(snapshot);
-    error = persistenceError;
+    await _refreshCommittedState();
+    saving = false;
     notifyListeners();
-    return false;
+    return true;
   }
 
   void _restoreSnapshot(_PlannerDraftSnapshot snapshot) {
@@ -305,7 +359,43 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     dirty = snapshot.dirty;
   }
 
+  void undo() {
+    if (!canUndo) return;
+    _redo.add(_snapshot());
+    _restoreSnapshot(_undo.removeLast());
+    error = null;
+    conflict = null;
+    notifyListeners();
+  }
+
+  void redo() {
+    if (!canRedo) return;
+    _undo.add(_snapshot());
+    _restoreSnapshot(_redo.removeLast());
+    dirty = true;
+    error = null;
+    conflict = null;
+    notifyListeners();
+  }
+
+  void discard() {
+    final original = _original;
+    if (!dirty || saving || original == null) return;
+    _restoreSnapshot(original);
+    _undo.clear();
+    _redo.clear();
+    dirty = false;
+    error = null;
+    conflict = null;
+    notifyListeners();
+  }
+
   Future<bool> saveGeneralConfig(GeneralScheduleDraft draft) async {
+    if (refreshPending) {
+      error = 'Recargue la planificación confirmada antes de editarla.';
+      notifyListeners();
+      return false;
+    }
     if (dirty) {
       error = 'Guarde los cambios de la matriz antes de cambiar la jornada.';
       notifyListeners();
@@ -313,18 +403,32 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     }
     saving = true;
     error = null;
+    refreshMessage = null;
     notifyListeners();
     try {
-      await _repository.saveGeneralConfig(draft);
-      _setLoaded(await _repository.getPlanner());
-      return true;
+      final version = await _repository.saveGeneralConfig(draft);
+      _markGeneralConfigCommitted(draft, version);
     } on TeachingScheduleException catch (exception) {
       error = exception.message;
-      return false;
-    } finally {
       saving = false;
       notifyListeners();
+      return false;
     }
+    await _refreshCommittedState();
+    saving = false;
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> refreshAfterCommit() async {
+    if (!refreshPending || loading || saving) return false;
+    loading = true;
+    error = null;
+    notifyListeners();
+    final refreshed = await _refreshCommittedState();
+    loading = false;
+    notifyListeners();
+    return refreshed;
   }
 
   Future<bool> saveSubject(
@@ -443,20 +547,90 @@ class SchedulePlannerViewModel extends ChangeNotifier {
     data = loaded;
     blocks = List.unmodifiable(loaded.blocks);
     assignments = List.unmodifiable(loaded.assignments);
-    _synchronizeAutomaticWeeklyMinutes();
     removedAssignmentIds.clear();
     removedBlockIds.clear();
+    _undo.clear();
+    _redo.clear();
     dirty = false;
+    refreshPending = false;
     error = null;
+    refreshMessage = null;
+    conflict = null;
+    _original = _snapshot();
   }
 
-  void _synchronizeAutomaticWeeklyMinutes() {
-    assignments = List.unmodifiable(
-      assignments.map((assignment) {
-        final total = scheduledMinutes(assignment);
-        return assignment.copyWith(weeklyMinutes: total == 0 ? 30 : total);
-      }),
+  void _markPlannerCommitted(int version) {
+    final loaded = data!;
+    data = loaded.copyWith(
+      config: loaded.config.copyWith(version: version),
+      assignments: List.unmodifiable(assignments),
+      blocks: List.unmodifiable(blocks),
     );
+    _markDraftCommitted();
+  }
+
+  void _markGeneralConfigCommitted(GeneralScheduleDraft draft, int version) {
+    final loaded = data!;
+    data = loaded.copyWith(
+      config: loaded.config.copyWith(
+        periodId: draft.periodId,
+        startTime: draft.startTime,
+        endTime: draft.endTime,
+        intervalMinutes: draft.intervalMinutes,
+        toleranceMinutes: draft.toleranceMinutes,
+        timeZone: draft.timeZone,
+        version: version,
+      ),
+      breaks: List.unmodifiable(draft.breaks),
+      configurationPending: false,
+    );
+    _markDraftCommitted();
+  }
+
+  void _markDraftCommitted() {
+    removedAssignmentIds.clear();
+    removedBlockIds.clear();
+    _undo.clear();
+    _redo.clear();
+    dirty = false;
+    conflict = null;
+    _original = _snapshot();
+  }
+
+  Future<bool> _refreshCommittedState() async {
+    try {
+      _setLoaded(await _repository.getPlanner());
+      return true;
+    } on TeachingScheduleException catch (exception) {
+      refreshPending = true;
+      refreshMessage =
+          'Los cambios se guardaron, pero no se pudo recargar la planificación: ${exception.message}';
+      return false;
+    }
+  }
+
+  bool _ensureEditable() {
+    if (!refreshPending) return true;
+    error = 'Recargue la planificación confirmada antes de editarla.';
+    notifyListeners();
+    return false;
+  }
+
+  _PlannerDraftSnapshot _snapshot() => _PlannerDraftSnapshot(
+    assignments: assignments,
+    blocks: blocks,
+    removedAssignmentIds: Set.of(removedAssignmentIds),
+    removedBlockIds: Set.of(removedBlockIds),
+    dirty: dirty,
+  );
+
+  void _remember() => _rememberSnapshot(_snapshot());
+
+  void _rememberSnapshot(_PlannerDraftSnapshot snapshot) {
+    _undo.add(snapshot);
+    if (_undo.length > 50) _undo.removeAt(0);
+    _redo.clear();
+    dirty = true;
   }
 
   static int _compareBlocks(
@@ -479,7 +653,7 @@ class _PlannerDraftSnapshot {
 
   final List<AcademicAssignment> assignments;
   final List<PlannerScheduleBlock> blocks;
-  final Set<String> removedAssignmentIds;
-  final Set<String> removedBlockIds;
+  final Set<int> removedAssignmentIds;
+  final Set<int> removedBlockIds;
   final bool dirty;
 }

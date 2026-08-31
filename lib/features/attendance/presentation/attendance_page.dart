@@ -5,62 +5,34 @@ import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
 import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
 import 'package:asisteqr_baker/core/widgets/status_badge.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
+import 'package:asisteqr_baker/features/attendance/presentation/attendance_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class AttendancePage extends ConsumerStatefulWidget {
+class AttendancePage extends ConsumerWidget {
   const AttendancePage({super.key});
-  @override
-  ConsumerState<AttendancePage> createState() => _AttendancePageState();
-}
 
-class _AttendancePageState extends ConsumerState<AttendancePage> {
-  List<AttendanceRecord>? records;
-  AttendanceStatus? status;
-  String? courseId;
-  DateTime date = DateUtils.dateOnly(DateTime.now());
-  String? loadError;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(_load);
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      records = null;
-      loadError = null;
-    });
-    try {
-      final result = await ref
-          .read(attendanceRepositoryProvider)
-          .getDaily(date: date, courseId: courseId, status: status);
-      if (mounted) setState(() => records = result);
-    } on Object {
-      if (mounted) {
-        setState(() => loadError = 'No se pudo cargar la asistencia diaria.');
-      }
-    }
-  }
-
-  Future<void> _selectDate() async {
+  Future<void> _selectDate(
+    BuildContext context,
+    AttendanceViewModel model,
+  ) async {
     final selected = await showDatePicker(
       context: context,
-      initialDate: date,
+      initialDate: model.date,
       firstDate: DateTime(2020),
       lastDate: DateUtils.dateOnly(DateTime.now()),
-      helpText: 'Seleccionar jornada',
+      helpText: 'Seleccionar fecha',
     );
-    if (selected == null || !mounted) return;
-    setState(() => date = DateUtils.dateOnly(selected));
-    await _load();
+    if (selected == null || !context.mounted) return;
+    await model.selectDate(selected);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final model = ref.watch(attendanceViewModelProvider);
+    final records = model.records;
     final courses = ref.watch(coursesViewModelProvider).courses;
     return AdaptiveShell(
       location: '/asistencia',
@@ -74,16 +46,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _pageHeader(wide: true),
+                  _pageHeader(context, model, wide: true),
                   const SizedBox(height: 18),
                   Expanded(
-                    child: loadError != null
-                        ? _AttendanceLoadError(onRetry: _load)
+                    child: model.error != null
+                        ? _AttendanceLoadError(onRetry: model.load)
                         : records == null
                         ? const Center(child: CircularProgressIndicator())
-                        : records!.isEmpty
+                        : records.isEmpty
                         ? const _EmptyAttendance()
-                        : _AttendanceTable(records: records!),
+                        : _AttendanceTable(records: records),
                   ),
                 ],
               ),
@@ -92,50 +64,41 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           return ListView(
             padding: const EdgeInsets.all(14),
             children: [
-              _pageHeader(wide: false),
+              _pageHeader(context, model, wide: false),
               const SizedBox(height: 18),
               _Filters(
                 courses: [
                   for (final course in courses)
                     (id: course.id, name: course.name),
                 ],
-                courseId: courseId,
-                status: status,
-                date: date,
-                onDatePressed: _selectDate,
-                onCourseChanged: (value) {
-                  courseId = value;
-                  _load();
-                },
-                onStatusChanged: (value) {
-                  status = value;
-                  _load();
-                },
-                onClear: () {
-                  courseId = null;
-                  status = null;
-                  date = DateUtils.dateOnly(DateTime.now());
-                  _load();
-                },
+                courseId: model.courseId,
+                status: model.status,
+                shift: model.shift,
+                date: model.date,
+                onDatePressed: () => _selectDate(context, model),
+                onCourseChanged: model.filterCourse,
+                onStatusChanged: model.filterStatus,
+                onShiftChanged: model.filterShift,
+                onClear: model.clearFilters,
               ),
               const SizedBox(height: 14),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
-                child: loadError != null
+                child: model.error != null
                     ? _AttendanceLoadError(
                         key: const ValueKey('error'),
-                        onRetry: _load,
+                        onRetry: model.load,
                       )
                     : records == null
                     ? const LinearProgressIndicator(
                         key: ValueKey('loading'),
                         minHeight: 2,
                       )
-                    : records!.isEmpty
+                    : records.isEmpty
                     ? const _EmptyAttendance(key: ValueKey('empty'))
                     : Column(
                         key: const ValueKey('list'),
-                        children: records!
+                        children: records
                             .map(
                               (record) => Padding(
                                 padding: const EdgeInsets.only(bottom: 9),
@@ -152,7 +115,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     );
   }
 
-  Widget _pageHeader({required bool wide}) => Row(
+  Widget _pageHeader(
+    BuildContext context,
+    AttendanceViewModel model, {
+    required bool wide,
+  }) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(
@@ -175,9 +142,9 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       ),
       if (wide)
         OutlinedButton.icon(
-          onPressed: _selectDate,
           icon: const Icon(LucideIcons.calendarDays, size: 18),
-          label: Text(DateFormat('dd/MM/yyyy').format(date)),
+          onPressed: () => _selectDate(context, model),
+          label: Text(DateFormat('dd/MM/yyyy').format(model.date)),
         ),
     ],
   );
@@ -188,19 +155,23 @@ class _Filters extends StatelessWidget {
     required this.courses,
     required this.courseId,
     required this.status,
+    required this.shift,
     required this.date,
     required this.onDatePressed,
     required this.onCourseChanged,
     required this.onStatusChanged,
+    required this.onShiftChanged,
     required this.onClear,
   });
-  final List<({String id, String name})> courses;
-  final String? courseId;
+  final List<({int id, String name})> courses;
+  final int? courseId;
   final AttendanceStatus? status;
+  final AttendanceShift? shift;
   final DateTime date;
   final VoidCallback onDatePressed;
-  final ValueChanged<String?> onCourseChanged;
+  final ValueChanged<int?> onCourseChanged;
   final ValueChanged<AttendanceStatus?> onStatusChanged;
+  final ValueChanged<AttendanceShift?> onShiftChanged;
   final VoidCallback onClear;
   @override
   Widget build(BuildContext context) => Container(
@@ -225,7 +196,7 @@ class _Filters extends StatelessWidget {
         ),
         SizedBox(
           width: 230,
-          child: DropdownButtonFormField<String>(
+          child: DropdownButtonFormField<int>(
             key: ValueKey(courseId),
             initialValue: courseId,
             isExpanded: true,
@@ -245,6 +216,25 @@ class _Filters extends StatelessWidget {
                 ),
             ],
             onChanged: onCourseChanged,
+          ),
+        ),
+        SizedBox(
+          width: 190,
+          child: DropdownButtonFormField<AttendanceShift>(
+            key: ValueKey(shift),
+            initialValue: shift,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Jornada',
+              prefixIcon: Icon(LucideIcons.clock3, size: 17),
+            ),
+            items: AttendanceShift.values
+                .map(
+                  (item) =>
+                      DropdownMenuItem(value: item, child: Text(item.label)),
+                )
+                .toList(),
+            onChanged: onShiftChanged,
           ),
         ),
         SizedBox(
@@ -329,7 +319,9 @@ class _AttendanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  DateFormat('dd/MM/yyyy · HH:mm').format(record.timestamp),
+                  record.timestamp == null
+                      ? '${record.shift?.label ?? 'Jornada'} · Sin registro de ingreso'
+                      : '${record.shift?.label ?? 'Jornada'} · ${DateFormat('dd/MM/yyyy · HH:mm').format(record.timestamp!)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -357,7 +349,10 @@ class _AttendanceTable extends StatelessWidget {
         record.student.fullName,
         record.student.course,
         record.status.label,
-        DateFormat('HH:mm').format(record.timestamp),
+        record.shift?.label ?? '',
+        record.timestamp == null
+            ? 'Sin registro'
+            : DateFormat('HH:mm').format(record.timestamp!),
       ].join(' '),
       filters: [
         AppDataFilter(
@@ -367,6 +362,16 @@ class _AttendanceTable extends StatelessWidget {
               AppDataFilterOption(
                 label: course,
                 matches: (record) => record.student.course == course,
+              ),
+          ],
+        ),
+        AppDataFilter(
+          label: 'Jornada',
+          options: [
+            for (final shift in AttendanceShift.values)
+              AppDataFilterOption(
+                label: shift.label,
+                matches: (record) => record.shift == shift,
               ),
           ],
         ),
@@ -416,11 +421,21 @@ class _AttendanceTable extends StatelessWidget {
           cellBuilder: (context, record) => Text(record.student.course),
         ),
         AppDataColumn(
+          label: 'Jornada',
+          compare: (first, second) =>
+              (first.shift?.index ?? -1).compareTo(second.shift?.index ?? -1),
+          cellBuilder: (context, record) =>
+              Text(record.shift?.label ?? 'Sin jornada'),
+        ),
+        AppDataColumn(
           label: 'Hora',
           compare: (first, second) =>
-              first.timestamp.compareTo(second.timestamp),
-          cellBuilder: (context, record) =>
-              Text(DateFormat('HH:mm').format(record.timestamp)),
+              _compareNullableDateTimes(first.timestamp, second.timestamp),
+          cellBuilder: (context, record) => Text(
+            record.timestamp == null
+                ? 'Sin registro'
+                : DateFormat('HH:mm').format(record.timestamp!),
+          ),
         ),
         AppDataColumn(
           label: 'Estado',
@@ -431,6 +446,13 @@ class _AttendanceTable extends StatelessWidget {
       ],
     );
   }
+}
+
+int _compareNullableDateTimes(DateTime? first, DateTime? second) {
+  if (first == null && second == null) return 0;
+  if (first == null) return 1;
+  if (second == null) return -1;
+  return first.compareTo(second);
 }
 
 class _AttendanceLoadError extends StatelessWidget {

@@ -98,7 +98,7 @@ class _CredentialAuthRepository implements AuthRepository {
   const _CredentialAuthRepository();
 
   static const _user = SessionUser(
-    id: 'admin-test',
+    id: 1,
     name: 'Administrador de pruebas',
     role: 'ADMINISTRADOR',
   );
@@ -122,7 +122,7 @@ class _CredentialRepositoryStub implements CredentialRepository {
   @override
   Future<List<CredentialStudent>> getStudents() async => const [
     CredentialStudent(
-      id: '1',
+      id: 1,
       code: '148',
       fullName: 'Valeria Mendoza Rojas',
       course: '4.º Secundaria B',
@@ -132,7 +132,7 @@ class _CredentialRepositoryStub implements CredentialRepository {
       guardianPhone: '71234567',
     ),
     CredentialStudent(
-      id: '2',
+      id: 2,
       code: '109',
       fullName: 'Carlos Martínez Silva',
       course: '4.º Secundaria A',
@@ -142,7 +142,7 @@ class _CredentialRepositoryStub implements CredentialRepository {
       guardianPhone: '72345678',
     ),
     CredentialStudent(
-      id: '3',
+      id: 3,
       code: '201',
       fullName: 'Ana Lucía Torres',
       course: '5.º Secundaria C',

@@ -55,7 +55,8 @@ class StudentsPage extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const AppDialogHeader(title: 'Desactivar estudiante'),
         content: Text(
-          'Se desactivará a ${student.fullName} y su credencial QR.',
+          'Se retirará a ${student.fullName}, su matrícula activa y su '
+          'credencial QR. Los registros históricos se conservarán.',
         ),
         actions: [
           TextButton(
@@ -152,9 +153,9 @@ class StudentsPage extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
+                      DropdownButtonFormField<int?>(
                         key: ValueKey(model.courseId),
-                        initialValue: model.courseId ?? '',
+                        initialValue: model.courseId,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Curso',
@@ -162,7 +163,7 @@ class StudentsPage extends ConsumerWidget {
                         ),
                         items: [
                           const DropdownMenuItem(
-                            value: '',
+                            value: null,
                             child: Text('Todos los cursos'),
                           ),
                           for (final course in model.courses)
@@ -175,9 +176,7 @@ class StudentsPage extends ConsumerWidget {
                               ),
                             ),
                         ],
-                        onChanged: (value) => model.filterCourse(
-                          value == null || value.isEmpty ? null : value,
-                        ),
+                        onChanged: model.filterCourse,
                       ),
                     ],
                   ],
@@ -492,7 +491,7 @@ class _StudentDialogState extends State<_StudentDialog> {
   late final TextEditingController guardianName;
   late final TextEditingController phone;
   late DateTime? birthDate;
-  late String courseId;
+  late int courseId;
   String? photoUrl;
   bool saving = false;
   bool pickingPhoto = false;
@@ -660,7 +659,7 @@ class _StudentDialogState extends State<_StudentDialog> {
                 ),
               ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<int>(
                 initialValue: courseId,
                 isExpanded: true,
                 decoration: const InputDecoration(

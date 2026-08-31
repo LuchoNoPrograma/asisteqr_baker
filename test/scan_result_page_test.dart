@@ -31,9 +31,9 @@ Future<void> _pumpResult(WidgetTester tester, AttendanceStatus status) async {
       home: ScanResultPage(
         result: ScanResult(
           record: AttendanceRecord(
-            id: 'record-${status.name}',
+            id: status.index + 1,
             student: const Student(
-              id: 'student-test',
+              id: 1,
               code: 'EST-2026-0148',
               fullName: 'Valeria Mendoza Rojas',
               course: '4.º Secundaria B',

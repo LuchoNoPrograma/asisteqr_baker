@@ -3,12 +3,12 @@ import 'package:asisteqr_baker/features/people/domain/people_repository.dart';
 
 class MockPeopleRepository implements PeopleRepository {
   final courses = const [
-    CourseOption(id: 'course-4b', name: '4.º Secundaria B'),
-    CourseOption(id: 'course-5a', name: '5.º Secundaria A'),
+    CourseOption(id: 1, name: '4.º Secundaria B'),
+    CourseOption(id: 2, name: '5.º Secundaria A'),
   ];
   final students = <StudentEntry>[
     StudentEntry(
-      id: 'student-1',
+      id: 1,
       studentCode: 1,
       firstNames: 'Valeria',
       lastNames: 'Mendoza Rojas',
@@ -17,12 +17,12 @@ class MockPeopleRepository implements PeopleRepository {
       guardianName: 'Ana Rojas',
       guardianPhone: '71234567',
       status: 'ACTIVO',
-      course: CourseOption(id: 'course-4b', name: '4.º Secundaria B'),
+      course: CourseOption(id: 1, name: '4.º Secundaria B'),
     ),
   ];
   final teachers = <TeacherEntry>[
     const TeacherEntry(
-      id: 'teacher-1',
+      id: 1,
       teacherCode: 1,
       firstNames: 'María Elena',
       lastNames: 'Rodríguez Flores',
@@ -40,7 +40,7 @@ class MockPeopleRepository implements PeopleRepository {
   @override
   Future<List<StudentEntry>> getStudents({
     String? search,
-    String? courseId,
+    int? courseId,
   }) async => students.where((item) {
     final normalizedSearch = search?.trim().toLowerCase();
     final matchesSearch =
@@ -56,7 +56,7 @@ class MockPeopleRepository implements PeopleRepository {
   @override
   Future<StudentEntry> createStudent(StudentDraft draft) async {
     final item = StudentEntry(
-      id: 'student-${students.length + 1}',
+      id: students.length + 1,
       studentCode:
           students.fold<int>(
             0,
@@ -79,7 +79,7 @@ class MockPeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<StudentEntry> updateStudent(String id, StudentDraft draft) async {
+  Future<StudentEntry> updateStudent(int id, StudentDraft draft) async {
     final index = students.indexWhere((item) => item.id == id);
     final current = students[index];
     final item = StudentEntry(
@@ -100,7 +100,7 @@ class MockPeopleRepository implements PeopleRepository {
   }
 
   @override
-  Future<void> retireStudent(String id) async {
+  Future<void> retireStudent(int id) async {
     final index = students.indexWhere((item) => item.id == id);
     final item = students[index];
     students[index] = StudentEntry(
@@ -130,20 +130,20 @@ class MockPeopleRepository implements PeopleRepository {
   @override
   Future<TeacherEntry> createTeacher(TeacherDraft draft) async {
     final code = teachers.length + 1;
-    final item = _teacher('teacher-$code', code, draft);
+    final item = _teacher(code, code, draft);
     teachers.add(item);
     return item;
   }
 
   @override
-  Future<TeacherEntry> updateTeacher(String id, TeacherDraft draft) async {
+  Future<TeacherEntry> updateTeacher(int id, TeacherDraft draft) async {
     final index = teachers.indexWhere((item) => item.id == id);
     final item = _teacher(id, teachers[index].teacherCode, draft);
     teachers[index] = item;
     return item;
   }
 
-  TeacherEntry _teacher(String id, int teacherCode, TeacherDraft draft) =>
+  TeacherEntry _teacher(int id, int teacherCode, TeacherDraft draft) =>
       TeacherEntry(
         id: id,
         teacherCode: teacherCode,
@@ -158,7 +158,7 @@ class MockPeopleRepository implements PeopleRepository {
       );
 
   @override
-  Future<void> deactivateTeacher(String id) async {
+  Future<void> deactivateTeacher(int id) async {
     final index = teachers.indexWhere((item) => item.id == id);
     final item = teachers[index];
     teachers[index] = TeacherEntry(

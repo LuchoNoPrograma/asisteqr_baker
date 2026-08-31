@@ -1,5 +1,3 @@
-import 'package:asisteqr_baker/features/schedules/domain/teaching_schedule_models.dart';
-
 class ScheduleTeacher {
   const ScheduleTeacher({
     required this.id,
@@ -11,7 +9,7 @@ class ScheduleTeacher {
     this.photoUrl,
   });
 
-  final String id;
+  final int id;
   final int code;
   final String fullName;
   final String specialty;
@@ -27,7 +25,7 @@ class SchedulePeriod {
     required this.year,
   });
 
-  final String id;
+  final int id;
   final String name;
   final int year;
 }
@@ -44,8 +42,8 @@ class GeneralScheduleConfig {
     required this.version,
   });
 
-  final String id;
-  final String periodId;
+  final int? id;
+  final int periodId;
   final String startTime;
   final String endTime;
   final int intervalMinutes;
@@ -55,6 +53,26 @@ class GeneralScheduleConfig {
 
   int get startMinutes => scheduleTimeToMinutes(startTime);
   int get endMinutes => scheduleTimeToMinutes(endTime);
+
+  GeneralScheduleConfig copyWith({
+    int? id,
+    int? periodId,
+    String? startTime,
+    String? endTime,
+    int? intervalMinutes,
+    int? toleranceMinutes,
+    String? timeZone,
+    int? version,
+  }) => GeneralScheduleConfig(
+    id: id ?? this.id,
+    periodId: periodId ?? this.periodId,
+    startTime: startTime ?? this.startTime,
+    endTime: endTime ?? this.endTime,
+    intervalMinutes: intervalMinutes ?? this.intervalMinutes,
+    toleranceMinutes: toleranceMinutes ?? this.toleranceMinutes,
+    timeZone: timeZone ?? this.timeZone,
+    version: version ?? this.version,
+  );
 }
 
 class GeneralScheduleDraft {
@@ -69,7 +87,7 @@ class GeneralScheduleDraft {
     this.timeZone = 'America/La_Paz',
   });
 
-  final String periodId;
+  final int periodId;
   final int version;
   final String startTime;
   final String endTime;
@@ -87,7 +105,7 @@ class ScheduleBreak {
     this.id,
   });
 
-  final String? id;
+  final int? id;
   final String name;
   final String startTime;
   final String endTime;
@@ -99,13 +117,13 @@ class ScheduleBreak {
 
 class ScheduleCourse {
   const ScheduleCourse({required this.id, required this.name});
-  final String id;
+  final int id;
   final String name;
 }
 
 class ScheduleSubject {
   const ScheduleSubject({required this.id, required this.name});
-  final String id;
+  final int id;
   final String name;
 }
 
@@ -116,62 +134,10 @@ class ScheduleClassroom {
     this.capacity,
     this.location,
   });
-  final String id;
+  final int id;
   final String name;
   final int? capacity;
   final String? location;
-}
-
-class TeacherScheduleBlock {
-  const TeacherScheduleBlock({
-    required this.id,
-    required this.courseId,
-    required this.courseName,
-    required this.subjectId,
-    required this.subjectName,
-    required this.classroomId,
-    required this.classroomName,
-    required this.weekday,
-    required this.startTime,
-    required this.endTime,
-  });
-
-  final String id;
-  final String courseId;
-  final String courseName;
-  final String subjectId;
-  final String subjectName;
-  final String classroomId;
-  final String classroomName;
-  final int weekday;
-  final String startTime;
-  final String endTime;
-
-  int get startMinutes => scheduleTimeToMinutes(startTime);
-  int get endMinutes => scheduleTimeToMinutes(endTime);
-  String get weekdayLabel => weekdayLabels[weekday] ?? 'Día $weekday';
-}
-
-class TeacherScheduleEditorData {
-  const TeacherScheduleEditorData({
-    required this.teacher,
-    required this.period,
-    required this.config,
-    required this.breaks,
-    required this.courses,
-    required this.subjects,
-    required this.classrooms,
-    required this.blocks,
-  });
-
-  final ScheduleTeacher teacher;
-  final SchedulePeriod period;
-  final GeneralScheduleConfig config;
-  final List<ScheduleBreak> breaks;
-  final List<ScheduleCourse> courses;
-  final List<ScheduleSubject> subjects;
-  final List<ScheduleClassroom> classrooms;
-  final List<TeacherScheduleBlock> blocks;
 }
 
 int scheduleTimeToMinutes(String value) {

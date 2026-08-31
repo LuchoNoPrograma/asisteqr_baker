@@ -9,11 +9,33 @@ class ApiAttendanceRepository implements AttendanceRepository {
   final ApiClient _client;
 
   @override
-  Future<ScanResult> registerQr(String qrToken) async {
+  Future<List<AttendanceShift>> getAvailableShifts() async {
+    try {
+      final response = await _client.dio.get<List<dynamic>>(
+        '/asistencias/jornadas',
+      );
+      return response.data!
+          .map(
+            (item) => AttendanceShift.fromApi(
+              (item as Map<String, dynamic>)['jornada'].toString(),
+            ),
+          )
+          .toList(growable: false);
+    } on DioException catch (error) {
+      throw _attendanceException(
+        error,
+        notFoundKind: AttendanceFailureKind.missingSchedule,
+        fallback: 'No se pudieron cargar las jornadas disponibles.',
+      );
+    }
+  }
+
+  @override
+  Future<ScanResult> registerQr(String qrToken, AttendanceShift shift) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(
         '/asistencias/escanear',
-        data: {'tokenQr': qrToken},
+        data: {'tokenQr': qrToken, 'jornada': shift.apiValue},
       );
       return _scanFromJson(response.data!);
     } on DioException catch (error) {
@@ -26,11 +48,14 @@ class ApiAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<ScanResult> registerManual(int studentCode) async {
+  Future<ScanResult> registerManual(
+    int studentCode,
+    AttendanceShift shift,
+  ) async {
     try {
       final response = await _client.dio.post<Map<String, dynamic>>(
         '/asistencias/manual',
-        data: {'codigoEstudiante': studentCode},
+        data: {'codigoEstudiante': studentCode, 'jornada': shift.apiValue},
       );
       return _scanFromJson(response.data!);
     } on DioException catch (error) {
@@ -45,9 +70,11 @@ class ApiAttendanceRepository implements AttendanceRepository {
   @override
   Future<DashboardSummary> getDashboard() async {
     final records = await getDaily();
-    final present = records
-        .where((item) => item.status != AttendanceStatus.absent)
-        .toList();
+    final present =
+        records.where((item) => item.status != AttendanceStatus.absent).toList()
+          ..sort(
+            (first, second) => second.timestamp!.compareTo(first.timestamp!),
+          );
     return DashboardSummary(
       expected: records.length,
       present: present.length,
@@ -68,16 +95,21 @@ class ApiAttendanceRepository implements AttendanceRepository {
   @override
   Future<List<AttendanceRecord>> getDaily({
     DateTime? date,
-    String? courseId,
+    int? courseId,
     String? course,
     AttendanceStatus? status,
+    AttendanceShift? shift,
   }) async {
     final formattedDate = date == null
         ? null
         : DateFormat('yyyy-MM-dd').format(date);
     final response = await _client.dio.get<List<dynamic>>(
       '/asistencias/diaria',
-      queryParameters: {'fecha': ?formattedDate, 'cursoId': ?courseId},
+      queryParameters: {
+        'fecha': ?formattedDate,
+        'cursoId': ?courseId,
+        'jornada': ?shift?.apiValue,
+      },
     );
     return response.data!
         .map((item) => _dailyFromJson(item as Map<String, dynamic>))
@@ -90,7 +122,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<List<AttendanceRecord>> getStudentHistory(String studentId) async {
+  Future<List<AttendanceRecord>> getStudentHistory(int studentId) async {
     final response = await _client.dio.get<Map<String, dynamic>>(
       '/estudiantes/$studentId/historial',
     );
@@ -99,9 +131,9 @@ class ApiAttendanceRepository implements AttendanceRepository {
     return (body['registros'] as List<dynamic>).map((item) {
       final record = item as Map<String, dynamic>;
       return AttendanceRecord(
-        id: record['id'].toString(),
+        id: (record['id'] as num).toInt(),
         student: Student(
-          id: studentJson['id'].toString(),
+          id: (studentJson['id'] as num).toInt(),
           code: studentJson['codigo'].toString(),
           fullName: studentJson['nombreCompleto'].toString(),
           course: record['curso'].toString(),
@@ -112,6 +144,8 @@ class ApiAttendanceRepository implements AttendanceRepository {
         status: record['estado'] == 'ATRASO'
             ? AttendanceStatus.late
             : AttendanceStatus.punctual,
+        scheduleId: ((record['horario'] as Map?)?['id'] as num?)?.toInt(),
+        shift: _optionalShift(record),
       );
     }).toList();
   }
@@ -119,7 +153,7 @@ class ApiAttendanceRepository implements AttendanceRepository {
   ScanResult _scanFromJson(Map<String, dynamic> json) {
     final studentJson = json['estudiante'] as Map<String, dynamic>;
     final student = Student(
-      id: studentJson['id'].toString(),
+      id: (studentJson['id'] as num).toInt(),
       code: studentJson['codigo'].toString(),
       fullName: studentJson['nombreCompleto'].toString(),
       course: studentJson['curso'].toString(),
@@ -127,12 +161,17 @@ class ApiAttendanceRepository implements AttendanceRepository {
       gender: _studentGender(studentJson),
     );
     final record = AttendanceRecord(
-      id: json['id'].toString(),
+      id: (json['id'] as num).toInt(),
       student: student,
       timestamp: DateTime.parse(json['fechaHora'].toString()).toLocal(),
       status: json['estado'] == 'ATRASO'
           ? AttendanceStatus.late
           : AttendanceStatus.punctual,
+      scheduleId: ((json['horario'] as Map<String, dynamic>)['id'] as num)
+          .toInt(),
+      shift: AttendanceShift.fromApi(
+        (json['horario'] as Map<String, dynamic>)['jornada'].toString(),
+      ),
     );
     return ScanResult(record: record, duplicate: json['duplicado'] == true);
   }
@@ -140,11 +179,12 @@ class ApiAttendanceRepository implements AttendanceRepository {
   AttendanceRecord _dailyFromJson(Map<String, dynamic> json) {
     final studentJson = json['estudiante'] as Map<String, dynamic>;
     final courseJson = json['curso'] as Map<String, dynamic>;
+    final scheduleJson = json['horario'] as Map<String, dynamic>;
     final statusValue = json['estado'].toString();
     return AttendanceRecord(
-      id: '${studentJson['id']}-$statusValue',
+      id: (json['id'] as num?)?.toInt(),
       student: Student(
-        id: studentJson['id'].toString(),
+        id: (studentJson['id'] as num).toInt(),
         code: studentJson['codigo'].toString(),
         fullName: studentJson['nombreCompleto'].toString(),
         course: courseJson['nombre'].toString(),
@@ -152,14 +192,27 @@ class ApiAttendanceRepository implements AttendanceRepository {
         gender: _studentGender(studentJson),
       ),
       timestamp: json['fechaHora'] == null
-          ? DateTime.now()
+          ? null
           : DateTime.parse(json['fechaHora'].toString()).toLocal(),
       status: switch (statusValue) {
         'ATRASO' => AttendanceStatus.late,
         'AUSENTE' => AttendanceStatus.absent,
         _ => AttendanceStatus.punctual,
       },
+      scheduleId: (scheduleJson['id'] as num).toInt(),
+      shift: AttendanceShift.fromApi(scheduleJson['jornada'].toString()),
     );
+  }
+
+  AttendanceShift? _optionalShift(Map<String, dynamic> json) {
+    final schedule = json['horario'];
+    if (schedule is Map && schedule['jornada'] != null) {
+      return AttendanceShift.fromApi(schedule['jornada'].toString());
+    }
+    if (json['jornada'] != null) {
+      return AttendanceShift.fromApi(json['jornada'].toString());
+    }
+    return null;
   }
 
   List<CourseAttendanceSummary> _courseSummaries(
@@ -207,14 +260,29 @@ class ApiAttendanceRepository implements AttendanceRepository {
   }) {
     final status = error.response?.statusCode;
     final body = error.response?.data;
-    final message = body is Map
-        ? (body['message'] ?? body['mensaje'])?.toString()
-        : null;
-    return AttendanceException(switch (status) {
-      401 || 403 => AttendanceFailureKind.unauthorized,
-      404 => notFoundKind,
-      400 => AttendanceFailureKind.inactiveStudent,
-      _ => AttendanceFailureKind.network,
-    }, message ?? fallback);
+    final code = body is Map ? body['code']?.toString() : null;
+    final rawMessage = body is Map ? body['message'] ?? body['mensaje'] : null;
+    final message = switch (rawMessage) {
+      List<dynamic> values => values.join('\n'),
+      null => null,
+      _ => rawMessage.toString(),
+    };
+    final kind = switch (code) {
+      'QR_INVALIDO' => AttendanceFailureKind.invalidQr,
+      'ESTUDIANTE_NO_ENCONTRADO' => AttendanceFailureKind.studentNotFound,
+      'ESTUDIANTE_INACTIVO' => AttendanceFailureKind.inactiveStudent,
+      'INSCRIPCION_ACTIVA_AUSENTE' => AttendanceFailureKind.missingEnrollment,
+      'HORARIO_ACTIVO_AUSENTE' => AttendanceFailureKind.missingSchedule,
+      'HORARIO_JORNADA_AUSENTE' => AttendanceFailureKind.missingSchedule,
+      'CONFIGURACION_HORARIA_AUSENTE' =>
+        AttendanceFailureKind.missingScheduleConfiguration,
+      _ => switch (status) {
+        401 || 403 => AttendanceFailureKind.unauthorized,
+        404 => notFoundKind,
+        400 => AttendanceFailureKind.unknown,
+        _ => AttendanceFailureKind.network,
+      },
+    };
+    return AttendanceException(kind, message ?? fallback);
   }
 }

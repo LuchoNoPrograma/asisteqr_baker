@@ -7,7 +7,7 @@ class CourseSchedule {
     required this.timeZone,
   });
 
-  final String id;
+  final int id;
   final String shift;
   final String deadline;
   final int toleranceMinutes;
@@ -33,7 +33,7 @@ class CourseEntry {
     required this.schedules,
   });
 
-  final String id;
+  final int id;
   final String name;
   final String level;
   final String parallel;

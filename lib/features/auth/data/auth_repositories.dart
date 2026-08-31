@@ -29,7 +29,7 @@ class MockAuthRepository implements AuthRepository {
       throw const AuthException('Usuario o contraseña incorrectos.');
     }
     return _session = const SessionUser(
-      id: 'admin-1',
+      id: 1,
       name: 'Administrador Baker',
       role: 'ADMINISTRADOR',
     );
@@ -103,7 +103,7 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   SessionUser _user(Map<String, dynamic> user) => SessionUser(
-    id: user['id'].toString(),
+    id: (user['id'] as num).toInt(),
     name: user['nombreCompleto'].toString(),
     role: user['rol'].toString(),
   );

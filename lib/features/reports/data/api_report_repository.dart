@@ -15,7 +15,7 @@ class ApiReportRepository implements ReportRepository {
   Future<ReportSummary> getSummary({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
   }) async {
     final format = DateFormat('yyyy-MM-dd');
     try {
@@ -31,13 +31,16 @@ class ApiReportRepository implements ReportRepository {
       return ReportSummary(
         from: DateTime.parse(json['desde'].toString()),
         to: DateTime.parse(json['hasta'].toString()),
+        consideredPeriods: (json['periodosConsiderados'] as num).toInt(),
         enrolledStudents: (json['estudiantesInscritos'] as num).toInt(),
         punctualAttendances: (json['asistenciasPuntuales'] as num).toInt(),
         lateAttendances: (json['atrasos'] as num).toInt(),
         totalRecords: (json['totalRegistros'] as num).toInt(),
         schoolDays: (json['diasHabiles'] as num).toInt(),
+        nonInstructionalDays: (json['diasNoLectivos'] as num).toInt(),
         expectedAttendances: (json['asistenciasEsperadas'] as num).toInt(),
         absences: (json['inasistencias'] as num).toInt(),
+        ignoredRecords: (json['registrosNoComputados'] as num).toInt(),
         attendancePercentage: (json['porcentajeAsistencia'] as num).toDouble(),
         punctualityPercentage: (json['porcentajePuntualidad'] as num)
             .toDouble(),
@@ -55,7 +58,7 @@ class ApiReportRepository implements ReportRepository {
   Future<String> exportPdf({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
   }) async {
     final format = DateFormat('yyyy-MM-dd');
     try {

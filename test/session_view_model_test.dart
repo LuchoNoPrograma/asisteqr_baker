@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
 import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
 import 'package:asisteqr_baker/features/auth/presentation/session_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +9,10 @@ void main() {
   test(
     'sale de checking cuando el almacenamiento de sesión no responde',
     () async {
-      final model = SessionViewModel(_HangingAuthRepository());
+      final model = SessionViewModel(
+        _HangingAuthRepository(),
+        SessionInvalidationNotifier(),
+      );
 
       expect(model.status, SessionStatus.checking);
       await Future<void>.delayed(const Duration(milliseconds: 2100));

@@ -20,11 +20,7 @@ void main() {
       overrides: [
         authRepositoryProvider.overrideWithValue(
           const _FixedAuthRepository(
-            SessionUser(
-              id: 'teacher-1',
-              name: 'Docente Baker',
-              role: 'DOCENTE',
-            ),
+            SessionUser(id: 1, name: 'Docente Baker', role: 'DOCENTE'),
           ),
         ),
         attendanceRepositoryProvider.overrideWithValue(

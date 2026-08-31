@@ -2,8 +2,17 @@ import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart
 import 'package:asisteqr_baker/features/attendance/domain/attendance_repository.dart';
 
 class MockAttendanceRepository implements AttendanceRepository {
+  MockAttendanceRepository({
+    this.availableShifts = const [
+      AttendanceShift.morning,
+      AttendanceShift.afternoon,
+    ],
+  });
+
+  final List<AttendanceShift> availableShifts;
+
   final _valeria = const Student(
-    id: 'est-0148',
+    id: 148,
     code: 'EST-2026-0148',
     fullName: 'Valeria Mendoza Rojas',
     course: '4.º Secundaria B',
@@ -11,55 +20,58 @@ class MockAttendanceRepository implements AttendanceRepository {
     gender: StudentGender.female,
   );
 
-  Student _student(String id, String code, String name, String course) =>
-      Student(
-        id: id,
-        code: code,
-        fullName: name,
-        course: course,
-        photoSource: 'assets/images/valeria-mendoza.png',
-      );
+  Student _student(int id, String code, String name, String course) => Student(
+    id: id,
+    code: code,
+    fullName: name,
+    course: course,
+    photoSource: 'assets/images/valeria-mendoza.png',
+  );
 
   List<AttendanceRecord> _recordsAt(DateTime date) {
     return [
       AttendanceRecord(
-        id: 'a1',
+        id: 1,
         student: _valeria,
         timestamp: DateTime(date.year, date.month, date.day, 7, 52),
         status: AttendanceStatus.punctual,
+        shift: AttendanceShift.morning,
       ),
       AttendanceRecord(
-        id: 'a2',
+        id: 2,
         student: _student(
-          'est-0109',
+          109,
           'EST-2026-0109',
           'Carlos Martínez Silva',
           '4.º Secundaria A',
         ),
         timestamp: DateTime(date.year, date.month, date.day, 8, 15),
         status: AttendanceStatus.late,
+        shift: AttendanceShift.morning,
       ),
       AttendanceRecord(
-        id: 'a3',
+        id: 3,
         student: _student(
-          'est-0201',
+          201,
           'EST-2026-0201',
           'Ana Lucía Torres',
           '5.º Secundaria C',
         ),
         timestamp: DateTime(date.year, date.month, date.day, 7, 58),
         status: AttendanceStatus.punctual,
+        shift: AttendanceShift.morning,
       ),
       AttendanceRecord(
-        id: 'a4',
+        id: null,
         student: _student(
-          'est-0320',
+          320,
           'EST-2026-0320',
           'Javier López Quispe',
           '3.º Secundaria B',
         ),
-        timestamp: DateTime(date.year, date.month, date.day, 8, 21),
+        timestamp: null,
         status: AttendanceStatus.absent,
+        shift: AttendanceShift.morning,
       ),
     ];
   }
@@ -113,7 +125,10 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<ScanResult> registerQr(String qrToken) async {
+  Future<List<AttendanceShift>> getAvailableShifts() async => availableShifts;
+
+  @override
+  Future<ScanResult> registerQr(String qrToken, AttendanceShift shift) async {
     await Future<void>.delayed(const Duration(milliseconds: 650));
     final token = qrToken.trim().toUpperCase();
     if (token.contains('INVALIDO') || token.contains('INVALID')) {
@@ -140,10 +155,11 @@ class MockAttendanceRepository implements AttendanceRepository {
         ? AttendanceStatus.late
         : AttendanceStatus.punctual;
     final record = AttendanceRecord(
-      id: 'scan-${now.microsecondsSinceEpoch}',
+      id: now.microsecondsSinceEpoch,
       student: _valeria,
       timestamp: now,
       status: status,
+      shift: shift,
     );
     if (token.contains('DUPLICADO') || token.contains('DUPLICATE')) {
       return ScanResult(
@@ -156,33 +172,35 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<ScanResult> registerManual(int studentCode) {
+  Future<ScanResult> registerManual(int studentCode, AttendanceShift shift) {
     if (studentCode != 148) {
       throw const AttendanceException(
         AttendanceFailureKind.studentNotFound,
         'No existe un estudiante con ese ID.',
       );
     }
-    return registerQr('MANUAL-$studentCode');
+    return registerQr('MANUAL-$studentCode', shift);
   }
 
   @override
   Future<List<AttendanceRecord>> getDaily({
     DateTime? date,
-    String? courseId,
+    int? courseId,
     String? course,
     AttendanceStatus? status,
+    AttendanceShift? shift,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     return _recordsAt(date ?? DateTime.now()).where((item) {
       final matchesCourse = course == null || item.student.course == course;
       final matchesStatus = status == null || item.status == status;
-      return matchesCourse && matchesStatus;
+      final matchesShift = shift == null || item.shift == shift;
+      return matchesCourse && matchesStatus && matchesShift;
     }).toList();
   }
 
   @override
-  Future<List<AttendanceRecord>> getStudentHistory(String studentId) async {
+  Future<List<AttendanceRecord>> getStudentHistory(int studentId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final now = DateTime.now();
     return List.generate(8, (index) {
@@ -192,7 +210,7 @@ class MockAttendanceRepository implements AttendanceRepository {
           ? AttendanceStatus.late
           : AttendanceStatus.punctual;
       return AttendanceRecord(
-        id: 'hist-$index',
+        id: index + 1,
         student: _valeria,
         timestamp: DateTime(
           now.year,

@@ -50,8 +50,9 @@ class CoursesPage extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const AppDialogHeader(title: 'Desactivar curso'),
         content: Text(
-          'Se ocultará ${course.name} y se desactivarán sus horarios. '
-          'Los registros históricos se conservarán.',
+          'Solo se podrá desactivar ${course.name} si no tiene matrículas, '
+          'asignaciones académicas ni bloques activos. Sus horarios de ingreso '
+          'se desactivarán y los registros históricos se conservarán.',
         ),
         actions: [
           TextButton(

@@ -14,7 +14,7 @@ class CredentialStudent extends Equatable {
     this.active = true,
   });
 
-  final String id;
+  final int id;
   final String code;
   final String fullName;
   final String course;

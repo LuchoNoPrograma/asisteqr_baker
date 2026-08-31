@@ -48,7 +48,7 @@ class ApiCredentialRepository implements CredentialRepository {
         );
       }
       return CredentialStudent(
-        id: student['id'].toString(),
+        id: (student['id'] as num).toInt(),
         code: code,
         fullName: fullName,
         course: course ?? 'Sin curso',

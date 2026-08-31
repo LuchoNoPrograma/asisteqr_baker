@@ -15,9 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final scanResult = ScanResult(
     record: AttendanceRecord(
-      id: 'responsive-audit',
+      id: 1,
       student: const Student(
-        id: 'student-audit',
+        id: 1,
         code: 'EST-0000000001',
         fullName: 'Nombre estudiantil particularmente extenso',
         course: '6.º de Secundaria Comunitaria Productiva A',
@@ -175,17 +175,20 @@ class _ReportRepositoryStub implements ReportRepository {
   Future<ReportSummary> getSummary({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
   }) async => ReportSummary(
     from: from,
     to: to,
+    consideredPeriods: 1,
     enrolledStudents: 1,
     punctualAttendances: 1,
     lateAttendances: 0,
     totalRecords: 1,
     schoolDays: 1,
+    nonInstructionalDays: 0,
     expectedAttendances: 1,
     absences: 0,
+    ignoredRecords: 0,
     attendancePercentage: 100,
     punctualityPercentage: 100,
   );
@@ -194,6 +197,6 @@ class _ReportRepositoryStub implements ReportRepository {
   Future<String> exportPdf({
     required DateTime from,
     required DateTime to,
-    String? courseId,
+    int? courseId,
   }) async => '/tmp/reporte.pdf';
 }

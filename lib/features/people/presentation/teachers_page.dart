@@ -52,7 +52,11 @@ class TeachersPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const AppDialogHeader(title: 'Desactivar docente'),
-        content: Text('Se desactivará a ${teacher.fullName}.'),
+        content: Text(
+          'Solo se podrá desactivar a ${teacher.fullName} si no tiene '
+          'asignaciones académicas ni bloques activos. Si existen, retíralos '
+          'primero desde el planificador.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -169,9 +173,8 @@ class TeachersPage extends ConsumerWidget {
                         teachers: model.teachers,
                         canManage: canManage,
                         onEdit: (item) => _edit(context, ref, item),
-                        onSchedule: (item) => context.go(
-                          '/horarios?perspectiva=docente&recursoId=${item.id}',
-                        ),
+                        onSchedule: (item) =>
+                            context.go('/docentes/${item.id}/horario'),
                         onDeactivate: (item) => _deactivate(context, ref, item),
                       )
                     : ListView.builder(
@@ -183,9 +186,8 @@ class TeachersPage extends ConsumerWidget {
                             teacher: teacher,
                             canManage: canManage,
                             onEdit: () => _edit(context, ref, teacher),
-                            onSchedule: () => context.go(
-                              '/horarios?perspectiva=docente&recursoId=${teacher.id}',
-                            ),
+                            onSchedule: () =>
+                                context.go('/docentes/${teacher.id}/horario'),
                             onDeactivate: () =>
                                 _deactivate(context, ref, teacher),
                           );

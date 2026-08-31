@@ -24,6 +24,40 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final session = ref.read(sessionViewModelProvider);
+  Future<bool> confirmPlannerExit(
+    BuildContext context,
+    GoRouterState state,
+  ) async {
+    final planner = ref.read(schedulePlannerViewModelProvider);
+    if (!planner.dirty) return true;
+    if (session.status != SessionStatus.signedIn) {
+      planner.discard();
+      return true;
+    }
+    if (planner.saving) return false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cambios sin guardar'),
+        content: const Text(
+          'El borrador de horarios se perderá al salir del planificador.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Seguir editando'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Descartar y salir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) planner.discard();
+    return confirmed ?? false;
+  }
+
   return GoRouter(
     initialLocation: '/inicio',
     refreshListenable: session,
@@ -37,6 +71,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (!authenticated && !atLogin) return '/acceso';
       if (authenticated && (atLogin || state.matchedLocation == '/cargando')) {
         return '/inicio';
+      }
+      final user = session.user;
+      if (authenticated &&
+          (state.matchedLocation == '/escaner' ||
+              state.matchedLocation == '/resultado') &&
+          user?.canScan != true) {
+        return '/acceso-denegado';
+      }
+      if (authenticated &&
+          user?.isRegent == true &&
+          !_regentAllowedRoutes.contains(state.matchedLocation)) {
+        return '/acceso-denegado';
       }
       if (authenticated &&
           state.matchedLocation == '/credenciales' &&
@@ -88,7 +134,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/historial',
         pageBuilder: (context, state) {
-          final studentId = state.extra as String?;
+          final studentId = state.extra as int?;
           return _slidePage(
             state,
             studentId == null
@@ -129,16 +175,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/docentes/:docenteId/horario',
-        redirect: (context, state) =>
-            '/horarios?perspectiva=docente&recursoId=${state.pathParameters['docenteId']!}',
+        onExit: confirmPlannerExit,
+        pageBuilder: (context, state) => _fadePage(
+          state,
+          TeachingSchedulesPage(
+            initialPerspective: 'docente',
+            initialResourceId: int.tryParse(
+              state.pathParameters['docenteId'] ?? '',
+            ),
+          ),
+        ),
       ),
       GoRoute(
         path: '/horarios',
+        onExit: confirmPlannerExit,
         pageBuilder: (context, state) => _fadePage(
           state,
           TeachingSchedulesPage(
             initialPerspective: state.uri.queryParameters['perspectiva'],
-            initialResourceId: state.uri.queryParameters['recursoId'],
+            initialResourceId: int.tryParse(
+              state.uri.queryParameters['recursoId'] ?? '',
+            ),
           ),
         ),
       ),
@@ -150,6 +207,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+const _regentAllowedRoutes = {
+  '/inicio',
+  '/escaner',
+  '/resultado',
+  '/asistencia',
+  '/acceso-denegado',
+};
 
 CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) =>
     CustomTransitionPage(

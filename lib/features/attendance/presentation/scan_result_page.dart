@@ -1,20 +1,22 @@
+import 'package:asisteqr_baker/app/providers.dart';
 import 'package:asisteqr_baker/app/theme/app_colors.dart';
 import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
 import 'package:asisteqr_baker/core/widgets/status_badge.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class ScanResultPage extends StatefulWidget {
+class ScanResultPage extends ConsumerStatefulWidget {
   const ScanResultPage({super.key, required this.result});
   final ScanResult result;
   @override
-  State<ScanResultPage> createState() => _ScanResultPageState();
+  ConsumerState<ScanResultPage> createState() => _ScanResultPageState();
 }
 
-class _ScanResultPageState extends State<ScanResultPage>
+class _ScanResultPageState extends ConsumerState<ScanResultPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController controller;
   @override
@@ -36,6 +38,8 @@ class _ScanResultPageState extends State<ScanResultPage>
   Widget build(BuildContext context) {
     final result = widget.result;
     final record = result.record;
+    final canViewHistory =
+        ref.watch(sessionViewModelProvider).user?.isRegent != true;
     final accent = result.duplicate
         ? AppColors.amber
         : record.status == AttendanceStatus.late
@@ -140,6 +144,13 @@ class _ScanResultPageState extends State<ScanResultPage>
                         record.student.course,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      if (record.shift != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Jornada ${record.shift!.label}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -165,7 +176,7 @@ class _ScanResultPageState extends State<ScanResultPage>
                                       : 'Hora de ingreso',
                                   value: DateFormat('HH:mm').format(
                                     result.originalTimestamp ??
-                                        record.timestamp,
+                                        record.timestamp!,
                                   ),
                                 ),
                               ),
@@ -175,7 +186,7 @@ class _ScanResultPageState extends State<ScanResultPage>
                                   label: 'Fecha',
                                   value: DateFormat(
                                     'dd/MM/yyyy',
-                                  ).format(record.timestamp),
+                                  ).format(record.timestamp!),
                                 ),
                               ),
                             ],
@@ -191,18 +202,20 @@ class _ScanResultPageState extends State<ScanResultPage>
                           label: const Text('Listo / Escanear siguiente'),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.push(
-                            '/historial',
-                            extra: record.student.id,
+                      if (canViewHistory) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push(
+                              '/historial',
+                              extra: record.student.id,
+                            ),
+                            icon: const Icon(LucideIcons.history, size: 18),
+                            label: const Text('Ver historial'),
                           ),
-                          icon: const Icon(LucideIcons.history, size: 18),
-                          label: const Text('Ver historial'),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

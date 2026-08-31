@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:asisteqr_baker/core/network/api_client.dart';
 import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
 import 'package:asisteqr_baker/features/attendance/data/api_attendance_repository.dart';
+import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,10 +15,14 @@ void main() {
       ApiClient(_TokenStore(), httpClient: dio),
     );
 
-    final result = await repository.registerManual(148);
+    final result = await repository.registerManual(
+      148,
+      AttendanceShift.afternoon,
+    );
 
     expect(result.record.student.code, '148');
     expect(result.record.student.fullName, 'Valeria Mendoza Rojas');
+    expect(result.record.shift, AttendanceShift.afternoon);
     expect(result.duplicate, isFalse);
   });
 
@@ -31,7 +36,8 @@ void main() {
 
     await repository.getDaily(
       date: DateTime(2026, 7, 14),
-      courseId: 'course-4b',
+      courseId: 1,
+      shift: AttendanceShift.afternoon,
     );
 
     expect(adapter.requests, 1);
@@ -58,7 +64,121 @@ void main() {
     expect(fourthA.female, 1);
     expect(fourthA.genderNotRegistered, 0);
     expect(summary.courses.last.genderNotRegistered, 1);
+    expect(summary.recent.first.student.id, 3);
+    expect(summary.recent.every((record) => record.timestamp != null), isTrue);
   });
+
+  test('representa la ausencia por jornada sin inventar una hora', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'http://api.test'))
+      ..httpClientAdapter = _DashboardApiAdapter();
+    final repository = ApiAttendanceRepository(
+      ApiClient(_TokenStore(), httpClient: dio),
+    );
+
+    final records = await repository.getDaily();
+    final absence = records.singleWhere(
+      (record) => record.status == AttendanceStatus.absent,
+    );
+
+    expect(absence.timestamp, isNull);
+    expect(absence.shift, AttendanceShift.morning);
+    expect(absence.scheduleId, isNotNull);
+  });
+
+  test('carga las jornadas operativas disponibles', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'http://api.test'))
+      ..httpClientAdapter = _AvailableShiftsApiAdapter();
+    final repository = ApiAttendanceRepository(
+      ApiClient(_TokenStore(), httpClient: dio),
+    );
+
+    final shifts = await repository.getAvailableShifts();
+
+    expect(shifts, [AttendanceShift.morning, AttendanceShift.afternoon]);
+  });
+
+  test('mapea los codigos funcionales estables de asistencia', () async {
+    const cases = <({String code, AttendanceFailureKind kind, bool qr})>[
+      (code: 'QR_INVALIDO', kind: AttendanceFailureKind.invalidQr, qr: true),
+      (
+        code: 'ESTUDIANTE_NO_ENCONTRADO',
+        kind: AttendanceFailureKind.studentNotFound,
+        qr: false,
+      ),
+      (
+        code: 'ESTUDIANTE_INACTIVO',
+        kind: AttendanceFailureKind.inactiveStudent,
+        qr: false,
+      ),
+      (
+        code: 'INSCRIPCION_ACTIVA_AUSENTE',
+        kind: AttendanceFailureKind.missingEnrollment,
+        qr: false,
+      ),
+      (
+        code: 'HORARIO_ACTIVO_AUSENTE',
+        kind: AttendanceFailureKind.missingSchedule,
+        qr: false,
+      ),
+      (
+        code: 'HORARIO_JORNADA_AUSENTE',
+        kind: AttendanceFailureKind.missingSchedule,
+        qr: false,
+      ),
+      (
+        code: 'CONFIGURACION_HORARIA_AUSENTE',
+        kind: AttendanceFailureKind.missingScheduleConfiguration,
+        qr: false,
+      ),
+    ];
+
+    for (final item in cases) {
+      final dio = Dio(BaseOptions(baseUrl: 'http://api.test'))
+        ..httpClientAdapter = _AttendanceErrorAdapter(item.code);
+      final repository = ApiAttendanceRepository(
+        ApiClient(_TokenStore(), httpClient: dio),
+      );
+
+      final request = item.qr
+          ? repository.registerQr('QR-NO-REGISTRADO', AttendanceShift.morning)
+          : repository.registerManual(148, AttendanceShift.morning);
+      await expectLater(
+        request,
+        throwsA(
+          isA<AttendanceException>()
+              .having((error) => error.kind, 'kind', item.kind)
+              .having((error) => error.message, 'message', 'Detalle funcional'),
+        ),
+      );
+    }
+  });
+}
+
+class _AttendanceErrorAdapter implements HttpClientAdapter {
+  _AttendanceErrorAdapter(this.code);
+
+  final String code;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final status = code == 'QR_INVALIDO' || code == 'ESTUDIANTE_NO_ENCONTRADO'
+        ? 404
+        : 400;
+    return ResponseBody.fromString(
+      jsonEncode({'code': code, 'message': 'Detalle funcional'}),
+      status,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _ManualAttendanceApiAdapter implements HttpClientAdapter {
@@ -70,16 +190,17 @@ class _ManualAttendanceApiAdapter implements HttpClientAdapter {
   ) async {
     expect(options.method, 'POST');
     expect(options.path, contains('/asistencias/manual'));
-    expect(options.data, {'codigoEstudiante': 148});
+    expect(options.data, {'codigoEstudiante': 148, 'jornada': 'TARDE'});
     expect(options.headers['Authorization'], 'Bearer session-token');
     return ResponseBody.fromString(
       jsonEncode({
-        'id': 'attendance-manual-1',
+        'id': 1,
         'fechaHora': '2026-08-13T12:00:00.000Z',
         'estado': 'PUNTUAL',
         'duplicado': false,
+        'horario': {'id': 2, 'jornada': 'TARDE', 'horaLimite': '14:00'},
         'estudiante': {
-          'id': 'student-148',
+          'id': 148,
           'codigo': 148,
           'nombreCompleto': 'Valeria Mendoza Rojas',
           'curso': '4.º Secundaria B',
@@ -115,7 +236,8 @@ class _AttendanceApiAdapter implements HttpClientAdapter {
     expect(options.method, 'GET');
     expect(options.path, contains('/asistencias/diaria'));
     expect(options.queryParameters['fecha'], '2026-07-14');
-    expect(options.queryParameters['cursoId'], 'course-4b');
+    expect(options.queryParameters['cursoId'], 1);
+    expect(options.queryParameters['jornada'], 'TARDE');
     expect(options.headers['Authorization'], 'Bearer session-token');
     return ResponseBody.fromString(
       jsonEncode([]),
@@ -142,15 +264,16 @@ class _DashboardApiAdapter implements HttpClientAdapter {
     return ResponseBody.fromString(
       jsonEncode([
         _record(
-          id: 'student-1',
+          id: 1,
           name: 'Ana Flores',
           course: '4.º Secundaria A',
           status: 'PUNTUAL',
           genderKey: 'genero',
           gender: 'FEMENINO',
+          timestamp: '2026-07-14T12:00:00.000Z',
         ),
         _record(
-          id: 'student-2',
+          id: 2,
           name: 'Luis Perez',
           course: '4.º Secundaria A',
           status: 'AUSENTE',
@@ -158,10 +281,11 @@ class _DashboardApiAdapter implements HttpClientAdapter {
           gender: 'M',
         ),
         _record(
-          id: 'student-3',
+          id: 3,
           name: 'Alex Rojas',
           course: '5.º Secundaria B',
           status: 'ATRASO',
+          timestamp: '2026-07-14T13:00:00.000Z',
         ),
       ]),
       200,
@@ -172,12 +296,13 @@ class _DashboardApiAdapter implements HttpClientAdapter {
   }
 
   Map<String, Object?> _record({
-    required String id,
+    required int id,
     required String name,
     required String course,
     required String status,
     String? genderKey,
     String? gender,
+    String? timestamp,
   }) {
     final student = <String, Object?>{
       'id': id,
@@ -187,11 +312,38 @@ class _DashboardApiAdapter implements HttpClientAdapter {
       ?genderKey: gender,
     };
     return {
+      'id': status == 'AUSENTE' ? null : id,
       'estudiante': student,
-      'curso': {'id': course, 'nombre': course},
-      'fechaHora': status == 'AUSENTE' ? null : '2026-07-14T12:00:00.000Z',
+      'curso': {'id': id, 'nombre': course},
+      'horario': {'id': id, 'jornada': 'MANANA', 'horaLimite': '08:00'},
+      'fechaHora': timestamp,
       'estado': status,
     };
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _AvailableShiftsApiAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    expect(options.method, 'GET');
+    expect(options.path, contains('/asistencias/jornadas'));
+    return ResponseBody.fromString(
+      jsonEncode([
+        {'jornada': 'MANANA'},
+        {'jornada': 'TARDE'},
+      ]),
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
   }
 
   @override

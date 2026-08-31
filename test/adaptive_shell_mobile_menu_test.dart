@@ -20,7 +20,7 @@ void main() {
             authRepositoryProvider.overrideWithValue(
               const _MenuAuthRepository(
                 SessionUser(
-                  id: 'admin-1',
+                  id: 1,
                   name: 'Administradora Baker',
                   role: 'ADMINISTRADOR',
                 ),

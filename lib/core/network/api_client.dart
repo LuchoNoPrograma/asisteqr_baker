@@ -1,10 +1,16 @@
 import 'package:asisteqr_baker/core/config/app_config.dart';
+import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
 import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
 import 'package:dio/dio.dart';
 
 class ApiClient {
-  ApiClient(this._tokens, {Dio? httpClient})
-    : dio = httpClient ?? Dio(_baseOptions()) {
+  ApiClient(
+    this._tokens, {
+    SessionInvalidationNotifier? sessionInvalidation,
+    Dio? httpClient,
+  }) : _sessionInvalidation =
+           sessionInvalidation ?? SessionInvalidationNotifier(),
+       dio = httpClient ?? Dio(_baseOptions()) {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -15,7 +21,16 @@ class ApiClient {
         onError: (error, handler) async {
           if (error.response?.statusCode == 401 &&
               !error.requestOptions.path.contains('/autenticacion/')) {
-            await _tokens.clear();
+            final authorization = error.requestOptions.headers['Authorization']
+                ?.toString();
+            final requestToken = authorization?.startsWith('Bearer ') == true
+                ? authorization!.substring('Bearer '.length)
+                : null;
+            final currentToken = await _tokens.readToken();
+            if (requestToken != null && requestToken == currentToken) {
+              await _tokens.clear();
+              _sessionInvalidation.invalidate();
+            }
           }
           handler.next(error);
         },
@@ -24,6 +39,7 @@ class ApiClient {
   }
 
   final SecureTokenStore _tokens;
+  final SessionInvalidationNotifier _sessionInvalidation;
   final Dio dio;
 
   static BaseOptions _baseOptions() => BaseOptions(

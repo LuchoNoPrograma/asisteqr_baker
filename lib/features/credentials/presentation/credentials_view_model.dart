@@ -15,13 +15,13 @@ class CredentialsViewModel extends ChangeNotifier {
   CredentialsLoadStatus loadStatus = CredentialsLoadStatus.loading;
   CredentialPrintMode printMode = CredentialPrintMode.frontAndBack;
   String? course;
-  String? previewStudentId;
+  int? previewStudentId;
   String? error;
   bool exporting = false;
   String _query = '';
-  final Set<String> _selectedIds = {};
+  final Set<int> _selectedIds = {};
 
-  Set<String> get selectedIds => Set.unmodifiable(_selectedIds);
+  Set<int> get selectedIds => Set.unmodifiable(_selectedIds);
 
   List<CredentialStudent> get filtered {
     final query = _query.trim().toLowerCase();

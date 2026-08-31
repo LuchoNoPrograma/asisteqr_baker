@@ -23,7 +23,7 @@ class MockCredentialRepository implements CredentialRepository {
     return [
       for (final entry in _entries)
         CredentialStudent(
-          id: 'est-${entry.$1}',
+          id: int.parse(entry.$1),
           code: entry.$1,
           fullName: entry.$2,
           course: entry.$3,

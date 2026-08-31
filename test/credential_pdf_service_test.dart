@@ -8,7 +8,7 @@ void main() {
   test('genera anverso y reverso de la credencial en una hoja PDF', () async {
     const students = [
       CredentialStudent(
-        id: 'est-0148',
+        id: 148,
         code: '1',
         fullName: 'Valeria Mendoza Rojas',
         course: '4.º Secundaria B',
@@ -18,7 +18,7 @@ void main() {
         guardianPhone: '71234567',
       ),
       CredentialStudent(
-        id: 'est-0027',
+        id: 27,
         code: '27',
         fullName: 'Carlos Quispe Flores',
         course: '5.º Secundaria A',

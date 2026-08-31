@@ -4,7 +4,7 @@ import 'package:asisteqr_baker/features/courses/domain/course_repository.dart';
 class MockCourseRepository implements CourseRepository {
   final courses = <CourseEntry>[
     const CourseEntry(
-      id: 'course-4b',
+      id: 1,
       name: '4.º Secundaria B',
       level: '4.º Secundaria',
       parallel: 'B',
@@ -13,7 +13,7 @@ class MockCourseRepository implements CourseRepository {
       teacherCount: 4,
       schedules: [
         CourseSchedule(
-          id: 'schedule-1',
+          id: 1,
           shift: 'MANANA',
           deadline: '08:00',
           toleranceMinutes: 5,
@@ -34,13 +34,13 @@ class MockCourseRepository implements CourseRepository {
 
   @override
   Future<CourseEntry> createCourse(CourseDraft draft) async {
-    final item = _fromDraft('course-${courses.length + 1}', draft);
+    final item = _fromDraft(courses.length + 1, draft);
     courses.add(item);
     return item;
   }
 
   @override
-  Future<CourseEntry> updateCourse(String id, CourseDraft draft) async {
+  Future<CourseEntry> updateCourse(int id, CourseDraft draft) async {
     final index = courses.indexWhere((item) => item.id == id);
     final current = courses[index];
     final item = _fromDraft(id, draft, current: current);
@@ -49,17 +49,17 @@ class MockCourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateCourse(String id) async {
+  Future<void> deactivateCourse(int id) async {
     courses.removeWhere((item) => item.id == id);
   }
 
   @override
   Future<CourseSchedule> createSchedule(
-    String courseId,
+    int courseId,
     ScheduleDraft draft,
   ) async {
     final schedule = _schedule(
-      'schedule-${DateTime.now().microsecondsSinceEpoch}',
+      courses.expand((course) => course.schedules).length + 1,
       draft,
     );
     _replaceSchedules(courseId, (items) => [...items, schedule]);
@@ -68,8 +68,8 @@ class MockCourseRepository implements CourseRepository {
 
   @override
   Future<CourseSchedule> updateSchedule(
-    String courseId,
-    String scheduleId,
+    int courseId,
+    int scheduleId,
     ScheduleDraft draft,
   ) async {
     final schedule = _schedule(scheduleId, draft);
@@ -82,29 +82,26 @@ class MockCourseRepository implements CourseRepository {
   }
 
   @override
-  Future<void> deactivateSchedule(String courseId, String scheduleId) async {
+  Future<void> deactivateSchedule(int courseId, int scheduleId) async {
     _replaceSchedules(
       courseId,
       (items) => items.where((item) => item.id != scheduleId).toList(),
     );
   }
 
-  CourseEntry _fromDraft(
-    String id,
-    CourseDraft draft, {
-    CourseEntry? current,
-  }) => CourseEntry(
-    id: id,
-    name: draft.name,
-    level: draft.level,
-    parallel: draft.parallel,
-    year: draft.year,
-    studentCount: current?.studentCount ?? 0,
-    teacherCount: current?.teacherCount ?? 0,
-    schedules: current?.schedules ?? const [],
-  );
+  CourseEntry _fromDraft(int id, CourseDraft draft, {CourseEntry? current}) =>
+      CourseEntry(
+        id: id,
+        name: draft.name,
+        level: draft.level,
+        parallel: draft.parallel,
+        year: draft.year,
+        studentCount: current?.studentCount ?? 0,
+        teacherCount: current?.teacherCount ?? 0,
+        schedules: current?.schedules ?? const [],
+      );
 
-  CourseSchedule _schedule(String id, ScheduleDraft draft) => CourseSchedule(
+  CourseSchedule _schedule(int id, ScheduleDraft draft) => CourseSchedule(
     id: id,
     shift: draft.shift,
     deadline: draft.deadline,
@@ -113,7 +110,7 @@ class MockCourseRepository implements CourseRepository {
   );
 
   void _replaceSchedules(
-    String courseId,
+    int courseId,
     List<CourseSchedule> Function(List<CourseSchedule>) update,
   ) {
     final index = courses.indexWhere((item) => item.id == courseId);

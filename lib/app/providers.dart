@@ -1,7 +1,9 @@
 import 'package:asisteqr_baker/core/network/api_client.dart';
+import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
 import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
 import 'package:asisteqr_baker/features/attendance/data/api_attendance_repository.dart';
 import 'package:asisteqr_baker/features/attendance/domain/attendance_repository.dart';
+import 'package:asisteqr_baker/features/attendance/presentation/attendance_view_model.dart';
 import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
 import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
 import 'package:asisteqr_baker/features/auth/presentation/session_view_model.dart';
@@ -20,20 +22,20 @@ import 'package:asisteqr_baker/features/people/presentation/teachers_view_model.
 import 'package:asisteqr_baker/features/reports/data/api_report_repository.dart';
 import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
 import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
-import 'package:asisteqr_baker/features/schedules/data/api_teacher_schedule_editor_repository.dart';
-import 'package:asisteqr_baker/features/schedules/data/api_teaching_schedule_repository.dart';
 import 'package:asisteqr_baker/features/schedules/data/api_schedule_planner_repository.dart';
 import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_repository.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_repository.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teaching_schedule_repository.dart';
-import 'package:asisteqr_baker/features/schedules/presentation/teacher_schedule_editor_view_model.dart';
 import 'package:asisteqr_baker/features/schedules/presentation/schedule_planner_view_model.dart';
-import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_view_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final tokenStoreProvider = Provider((ref) => SecureTokenStore());
+final sessionInvalidationProvider = Provider(
+  (ref) => SessionInvalidationNotifier(),
+);
 final apiClientProvider = Provider(
-  (ref) => ApiClient(ref.watch(tokenStoreProvider)),
+  (ref) => ApiClient(
+    ref.watch(tokenStoreProvider),
+    sessionInvalidation: ref.watch(sessionInvalidationProvider),
+  ),
 );
 
 final authRepositoryProvider = Provider<AuthRepository>(
@@ -45,6 +47,10 @@ final authRepositoryProvider = Provider<AuthRepository>(
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>(
   (ref) => ApiAttendanceRepository(ref.watch(apiClientProvider)),
+);
+
+final attendanceViewModelProvider = ChangeNotifierProvider.autoDispose(
+  (ref) => AttendanceViewModel(ref.watch(attendanceRepositoryProvider))..load(),
 );
 
 final credentialRepositoryProvider = Provider<CredentialRepository>(
@@ -89,23 +95,6 @@ final reportExportViewModelProvider = ChangeNotifierProvider.autoDispose(
   (ref) => ReportExportViewModel(ref.watch(reportRepositoryProvider)),
 );
 
-final teachingScheduleRepositoryProvider = Provider<TeachingScheduleRepository>(
-  (ref) => ApiTeachingScheduleRepository(ref.watch(apiClientProvider)),
-);
-
-final teachingSchedulesViewModelProvider = ChangeNotifierProvider.autoDispose(
-  (ref) => TeachingSchedulesViewModel(
-    ref.watch(teachingScheduleRepositoryProvider),
-    ref.watch(peopleRepositoryProvider),
-    ref.watch(courseRepositoryProvider),
-  )..load(),
-);
-
-final teacherScheduleEditorRepositoryProvider =
-    Provider<TeacherScheduleEditorRepository>(
-      (ref) => ApiTeacherScheduleEditorRepository(ref.watch(apiClientProvider)),
-    );
-
 final schedulePlannerRepositoryProvider = Provider<SchedulePlannerRepository>(
   (ref) => ApiSchedulePlannerRepository(ref.watch(apiClientProvider)),
 );
@@ -116,15 +105,9 @@ final schedulePlannerViewModelProvider = ChangeNotifierProvider.autoDispose(
         ..load(),
 );
 
-final teacherScheduleEditorViewModelProvider = ChangeNotifierProvider
-    .autoDispose
-    .family<TeacherScheduleEditorViewModel, String>(
-      (ref, teacherId) => TeacherScheduleEditorViewModel(
-        ref.watch(teacherScheduleEditorRepositoryProvider),
-        teacherId,
-      )..load(),
-    );
-
 final sessionViewModelProvider = ChangeNotifierProvider(
-  (ref) => SessionViewModel(ref.watch(authRepositoryProvider)),
+  (ref) => SessionViewModel(
+    ref.watch(authRepositoryProvider),
+    ref.watch(sessionInvalidationProvider),
+  ),
 );

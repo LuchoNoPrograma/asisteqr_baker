@@ -26,7 +26,8 @@ class DashboardPage extends ConsumerWidget {
     final userName = user?.name.trim().isNotEmpty == true
         ? user!.name.trim()
         : 'Usuario Baker';
-    final isAdministrator = user?.isAdministrator == true;
+    final userRole = user?.role ?? 'USUARIO';
+    final canScan = user?.canScan == true;
 
     return AdaptiveShell(
       location: '/inicio',
@@ -45,12 +46,14 @@ class DashboardPage extends ConsumerWidget {
                 ? _DesktopDashboard(
                     summary: summary,
                     userName: userName,
-                    isAdministrator: isAdministrator,
+                    userRole: userRole,
+                    canScan: canScan,
                   )
                 : _MobileDashboard(
                     summary: summary,
                     userName: userName,
-                    isAdministrator: isAdministrator,
+                    userRole: userRole,
+                    canScan: canScan,
                   );
           },
         ),
@@ -63,12 +66,14 @@ class _MobileDashboard extends StatelessWidget {
   const _MobileDashboard({
     required this.summary,
     required this.userName,
-    required this.isAdministrator,
+    required this.userRole,
+    required this.canScan,
   });
 
   final DashboardSummary summary;
   final String userName;
-  final bool isAdministrator;
+  final String userRole;
+  final bool canScan;
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +83,13 @@ class _MobileDashboard extends StatelessWidget {
       children: [
         Entrance(child: _DashboardHeading(userName: userName)),
         const SizedBox(height: 18),
-        Entrance(index: 1, child: _ScanAction(summary: summary, compact: true)),
-        const SizedBox(height: 22),
+        if (canScan) ...[
+          Entrance(
+            index: 1,
+            child: _ScanAction(summary: summary, compact: true),
+          ),
+          const SizedBox(height: 22),
+        ],
         Entrance(
           index: 2,
           child: _SectionTitle(
@@ -113,15 +123,16 @@ class _MobileDashboard extends StatelessWidget {
         const SizedBox(height: 10),
         Entrance(
           index: 7,
-          child: _QuickAccessGrid(
-            isAdministrator: isAdministrator,
-            compact: true,
-          ),
+          child: _QuickAccessGrid(userRole: userRole, compact: true),
         ),
         const SizedBox(height: 24),
         Entrance(
           index: 8,
-          child: _RecentActivity(records: summary.recent, compact: true),
+          child: _RecentActivity(
+            records: summary.recent,
+            compact: true,
+            canScan: canScan,
+          ),
         ),
       ],
     );
@@ -132,12 +143,14 @@ class _DesktopDashboard extends StatelessWidget {
   const _DesktopDashboard({
     required this.summary,
     required this.userName,
-    required this.isAdministrator,
+    required this.userRole,
+    required this.canScan,
   });
 
   final DashboardSummary summary;
   final String userName;
-  final bool isAdministrator;
+  final String userRole;
+  final bool canScan;
 
   @override
   Widget build(BuildContext context) {
@@ -147,8 +160,10 @@ class _DesktopDashboard extends StatelessWidget {
       children: [
         Entrance(child: _DashboardHeading(userName: userName)),
         const SizedBox(height: 24),
-        Entrance(index: 1, child: _ScanAction(summary: summary)),
-        const SizedBox(height: 24),
+        if (canScan) ...[
+          Entrance(index: 1, child: _ScanAction(summary: summary)),
+          const SizedBox(height: 24),
+        ],
         Entrance(
           index: 2,
           child: const _SectionTitle(title: 'Jornada en curso'),
@@ -171,10 +186,11 @@ class _DesktopDashboard extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 1020;
-              final recent = _RecentActivity(records: summary.recent);
-              final access = _QuickAccessPanel(
-                isAdministrator: isAdministrator,
+              final recent = _RecentActivity(
+                records: summary.recent,
+                canScan: canScan,
               );
+              final access = _QuickAccessPanel(userRole: userRole);
               if (stacked) {
                 return Column(
                   children: [recent, const SizedBox(height: 16), access],
@@ -718,9 +734,9 @@ class _StatusValue extends StatelessWidget {
 }
 
 class _QuickAccessPanel extends StatelessWidget {
-  const _QuickAccessPanel({required this.isAdministrator});
+  const _QuickAccessPanel({required this.userRole});
 
-  final bool isAdministrator;
+  final String userRole;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -743,22 +759,22 @@ class _QuickAccessPanel extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
-        _QuickAccessGrid(isAdministrator: isAdministrator),
+        _QuickAccessGrid(userRole: userRole),
       ],
     ),
   );
 }
 
 class _QuickAccessGrid extends StatelessWidget {
-  const _QuickAccessGrid({required this.isAdministrator, this.compact = false});
+  const _QuickAccessGrid({required this.userRole, this.compact = false});
 
-  final bool isAdministrator;
+  final String userRole;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final items = _dashboardDestinations
-        .where((item) => isAdministrator || !item.administratorOnly)
+        .where((item) => item.allowedRoles.contains(userRole))
         .toList();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -872,9 +888,14 @@ class _QuickAccessTile extends StatelessWidget {
 }
 
 class _RecentActivity extends StatelessWidget {
-  const _RecentActivity({required this.records, this.compact = false});
+  const _RecentActivity({
+    required this.records,
+    required this.canScan,
+    this.compact = false,
+  });
 
   final List<AttendanceRecord> records;
+  final bool canScan;
   final bool compact;
 
   @override
@@ -905,7 +926,9 @@ class _RecentActivity extends StatelessWidget {
             ],
           ),
           if (visibleRecords.isEmpty)
-            _EmptyActivity(onScan: () => context.go('/escaner'))
+            _EmptyActivity(
+              onScan: canScan ? () => context.go('/escaner') : null,
+            )
           else ...[
             const Divider(height: 16),
             for (var index = 0; index < visibleRecords.length; index++) ...[
@@ -923,7 +946,7 @@ class _RecentActivity extends StatelessWidget {
 class _EmptyActivity extends StatelessWidget {
   const _EmptyActivity({required this.onScan});
 
-  final VoidCallback onScan;
+  final VoidCallback? onScan;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -956,12 +979,14 @@ class _EmptyActivity extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: onScan,
-          icon: const Icon(LucideIcons.scanLine, size: 17),
-          label: const Text('Escanear credencial'),
-        ),
+        if (onScan != null) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onScan,
+            icon: const Icon(LucideIcons.scanLine, size: 17),
+            label: const Text('Escanear credencial'),
+          ),
+        ],
       ],
     ),
   );
@@ -997,7 +1022,7 @@ class _RecordTile extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${DateFormat('HH:mm').format(record.timestamp)} · ${record.student.course}',
+                '${DateFormat('HH:mm').format(record.timestamp!)} · ${record.student.course}${record.shift == null ? '' : ' · ${record.shift!.label}'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
@@ -1094,22 +1119,28 @@ class _DashboardDestination {
     this.label,
     this.route,
     this.icon, {
-    this.administratorOnly = false,
+    this.allowedRoles = const {'ADMINISTRADOR', 'DOCENTE'},
   });
 
   final String label;
   final String route;
   final IconData icon;
-  final bool administratorOnly;
+  final Set<String> allowedRoles;
 }
 
 const _dashboardDestinations = [
+  _DashboardDestination(
+    'Asistencia',
+    '/asistencia',
+    LucideIcons.clipboardCheck,
+    allowedRoles: {'ADMINISTRADOR', 'DOCENTE', 'REGENTE'},
+  ),
   _DashboardDestination('Cursos', '/cursos', LucideIcons.school),
   _DashboardDestination(
     'Credenciales',
     '/credenciales',
     LucideIcons.idCard,
-    administratorOnly: true,
+    allowedRoles: {'ADMINISTRADOR'},
   ),
   _DashboardDestination(
     'Estudiantes',
