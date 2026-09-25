@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
-import 'package:asisteqr_baker/features/reports/presentation/report_export_view_model.dart';
+import 'package:sis_amerinst/features/reports/domain/report_repository.dart';
+import 'package:sis_amerinst/features/reports/presentation/report_export_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

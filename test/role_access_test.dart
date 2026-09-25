@@ -1,11 +1,11 @@
-import 'package:asisteqr_baker/app/app.dart';
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/router/app_router.dart';
-import 'package:asisteqr_baker/features/attendance/data/mock_attendance_repository.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
-import 'package:asisteqr_baker/features/courses/data/mock_course_repository.dart';
-import 'package:asisteqr_baker/features/credentials/data/mock_credential_repository.dart';
-import 'package:asisteqr_baker/features/people/data/mock_people_repository.dart';
+import 'package:sis_amerinst/app/app.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/router/app_router.dart';
+import 'package:sis_amerinst/features/attendance/data/mock_attendance_repository.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/features/courses/data/mock_course_repository.dart';
+import 'package:sis_amerinst/features/credentials/data/mock_credential_repository.dart';
+import 'package:sis_amerinst/features/people/data/mock_people_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,7 +39,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const AsisteQrApp(),
+        child: const SisAmerinstApp(),
       ),
     );
     await tester.pumpAndSettle();

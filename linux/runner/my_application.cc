@@ -30,7 +30,7 @@ static void my_application_activate(GApplication* application) {
     g_autofree gchar* executable_dir = g_path_get_dirname(executable_path);
     g_autofree gchar* icon_path = g_build_filename(
         executable_dir, "share", "icons", "hicolor", "256x256", "apps",
-        "com.nini.asisteqr_baker.png", nullptr);
+        APPLICATION_ID ".png", nullptr);
     gtk_window_set_icon_from_file(window, icon_path, nullptr);
   }
 
@@ -54,11 +54,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "AsisteQR Baker");
+    gtk_header_bar_set_title(header_bar, "SIS AMERINST");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "AsisteQR Baker");
+    gtk_window_set_title(window, "SIS AMERINST");
   }
 
   gtk_window_set_default_size(window, 1280, 720);

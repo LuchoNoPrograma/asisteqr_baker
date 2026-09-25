@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/institution_mark.dart';
 import 'package:flutter/material.dart';
 
 class BrandedWorkspace extends StatelessWidget {

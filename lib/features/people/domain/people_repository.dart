@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/features/people/domain/people_models.dart';
+import 'package:sis_amerinst/features/people/domain/people_models.dart';
 
 abstract interface class PeopleRepository {
   Future<List<CourseOption>> getCourses();

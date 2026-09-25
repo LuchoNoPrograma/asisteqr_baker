@@ -1,14 +1,15 @@
+import 'package:sis_amerinst/core/config/app_brand.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
-import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
-import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
-import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
-import 'package:asisteqr_baker/features/credentials/presentation/credentials_view_model.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/adaptive_shell.dart';
+import 'package:sis_amerinst/core/widgets/app_feedback.dart';
+import 'package:sis_amerinst/core/widgets/app_person_image.dart';
+import 'package:sis_amerinst/core/widgets/institution_mark.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/presentation/credentials_view_model.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -69,7 +70,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       final bytes = await _model.buildSelectedPdf();
       if (print) {
         await Printing.layoutPdf(
-          name: 'Credenciales AsisteQR Baker',
+          name: 'Credenciales SIS AMERINST',
           onLayout: (_) async => bytes,
         );
         if (mounted) {
@@ -80,7 +81,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
           );
         }
       } else {
-        final fileName = 'credenciales_asisteqr_${selected.length}.pdf';
+        final fileName = 'credenciales_sis_amerinst_${selected.length}.pdf';
         final savedPath = await _savePdf(bytes, fileName);
         if (savedPath == null || !mounted) return;
         final action = await showSavedFileDialog(
@@ -738,10 +739,7 @@ class _CredentialFrontPreview extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.asset(
-                    'assets/branding/credential-front-template.png',
-                    fit: BoxFit.fill,
-                  ),
+                  child: Image.asset(AppBrand.frontAsset, fit: BoxFit.fill),
                 ),
                 const _CredentialTemplateHeader(
                   subtitle: 'CREDENCIAL ESTUDIANTIL',
@@ -754,13 +752,13 @@ class _CredentialFrontPreview extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(5),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF13A8DB),
+                      color: Color(0xFFC81932),
                       shape: BoxShape.circle,
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1727C9),
+                        color: Color(0xFF142454),
                         shape: BoxShape.circle,
                       ),
                       child: ClipOval(
@@ -798,7 +796,7 @@ class _CredentialFrontPreview extends StatelessWidget {
                           const Text(
                             'IDENTIDAD ESTUDIANTIL',
                             style: TextStyle(
-                              color: Color(0xFF087AA7),
+                              color: Color(0xFF9E1428),
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
                             ),
@@ -829,7 +827,7 @@ class _CredentialFrontPreview extends StatelessWidget {
                       const SizedBox(height: 6),
                       _PreviewField(label: 'CURSO', value: student.course),
                       const Spacer(),
-                      const Divider(color: Color(0xFF13A8DB), height: 10),
+                      const Divider(color: Color(0xFFC81932), height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -903,14 +901,11 @@ class _CredentialBackPreview extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.asset(
-                    'assets/branding/credential-back-template.png',
-                    fit: BoxFit.fill,
-                  ),
+                  child: Image.asset(AppBrand.backAsset, fit: BoxFit.fill),
                 ),
                 const _CredentialTemplateHeader(
                   subtitle: 'CONTROL DE ASISTENCIA',
-                  subtitleTop: 20,
+                  subtitleTop: 14,
                 ),
                 Positioned(
                   left: 34,
@@ -1008,7 +1003,7 @@ class _CredentialBackPreview extends StatelessWidget {
                       const SizedBox(height: 6),
                       const _PreviewInstruction(
                         number: '02',
-                        text: 'Escanea el QR solo con AsisteQR Baker.',
+                        text: AppBrand.credentialInstruction,
                       ),
                       const Spacer(),
                       Row(
@@ -1021,7 +1016,7 @@ class _CredentialBackPreview extends StatelessWidget {
                             ),
                           ),
                           Container(
-                            color: const Color(0xFFE5F6FC),
+                            color: const Color(0xFFF9ECEF),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 7,
                               vertical: 4,
@@ -1163,15 +1158,15 @@ class _CredentialTemplateHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UNIDAD EDUCATIVA',
+                'U.E. EVANGÉLICA METODISTA',
                 style: TextStyle(
-                  color: Color(0xFF087AA7),
-                  fontSize: 7,
+                  color: Color(0xFF9E1428),
+                  fontSize: 5.5,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               Text(
-                'ADVENTISTA BAKER',
+                AppBrand.credentialInstitution,
                 style: TextStyle(
                   color: AppColors.navyDark,
                   fontSize: 7,
@@ -1182,16 +1177,20 @@ class _CredentialTemplateHeader extends StatelessWidget {
           ),
         ),
         Positioned(
-          left: 112,
+          left: 157,
           right: 0,
           top: subtitleTop,
-          child: Text(
-            subtitle,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
+          child: Container(
+            color: AppColors.institutionalRed,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text(
+              subtitle,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),

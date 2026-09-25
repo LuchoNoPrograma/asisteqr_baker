@@ -1,7 +1,7 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_theme.dart';
-import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_theme.dart';
+import 'package:sis_amerinst/core/widgets/adaptive_shell.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

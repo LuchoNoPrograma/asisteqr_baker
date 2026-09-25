@@ -1,4 +1,4 @@
-# Flujos funcionales de AsisteQR Baker
+# Flujos funcionales de SIS AMERINST
 
 Última revisión: 2026-08-22 (America/La_Paz).
 

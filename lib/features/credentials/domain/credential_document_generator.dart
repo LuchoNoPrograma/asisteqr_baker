@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
 
 abstract interface class CredentialDocumentGenerator {
   Future<Uint8List> build({

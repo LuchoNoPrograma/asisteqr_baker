@@ -1,13 +1,13 @@
-import 'package:asisteqr_baker/app/app.dart';
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/router/app_router.dart';
-import 'package:asisteqr_baker/features/attendance/data/mock_attendance_repository.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
-import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
-import 'package:asisteqr_baker/features/courses/data/mock_course_repository.dart';
-import 'package:asisteqr_baker/features/credentials/data/mock_credential_repository.dart';
-import 'package:asisteqr_baker/features/people/data/mock_people_repository.dart';
-import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
+import 'package:sis_amerinst/app/app.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/router/app_router.dart';
+import 'package:sis_amerinst/features/attendance/data/mock_attendance_repository.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/auth/data/auth_repositories.dart';
+import 'package:sis_amerinst/features/courses/data/mock_course_repository.dart';
+import 'package:sis_amerinst/features/credentials/data/mock_credential_repository.dart';
+import 'package:sis_amerinst/features/people/data/mock_people_repository.dart';
+import 'package:sis_amerinst/features/reports/domain/report_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,7 +68,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const AsisteQrApp(),
+          child: const SisAmerinstApp(),
         ),
       );
       await tester.pump();
@@ -115,7 +115,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const AsisteQrApp(),
+        child: const SisAmerinstApp(),
       ),
     );
     await tester.pump(const Duration(seconds: 2));
@@ -151,7 +151,7 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.3;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await tester.pumpWidget(const ProviderScope(child: AsisteQrApp()));
+    await tester.pumpWidget(const ProviderScope(child: SisAmerinstApp()));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
 

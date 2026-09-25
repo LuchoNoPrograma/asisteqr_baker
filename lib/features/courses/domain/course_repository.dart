@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
+import 'package:sis_amerinst/features/courses/domain/course_models.dart';
 
 abstract interface class CourseRepository {
   Future<List<CourseEntry>> getCourses({String? search});

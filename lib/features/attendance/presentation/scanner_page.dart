@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/adaptive_shell.dart';
-import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
-import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
-import 'package:asisteqr_baker/features/attendance/presentation/desktop_camera_scanner_stub.dart'
-    if (dart.library.io) 'package:asisteqr_baker/features/attendance/presentation/desktop_camera_scanner_native.dart';
-import 'package:asisteqr_baker/features/attendance/presentation/scanner_view_model.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/adaptive_shell.dart';
+import 'package:sis_amerinst/core/widgets/app_dialog_header.dart';
+import 'package:sis_amerinst/core/widgets/app_feedback.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/attendance/presentation/desktop_camera_scanner_stub.dart'
+    if (dart.library.io) 'package:sis_amerinst/features/attendance/presentation/desktop_camera_scanner_native.dart';
+import 'package:sis_amerinst/features/attendance/presentation/scanner_view_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -647,7 +647,7 @@ class _CameraUnavailable extends StatelessWidget {
     final (title, message) = switch (error.errorCode) {
       MobileScannerErrorCode.permissionDenied => (
         'Permiso de cámara bloqueado',
-        'Autoriza la cámara para AsisteQR Baker y vuelve a intentar. En Web, abre la aplicación mediante HTTPS o localhost.',
+        'Autoriza la cámara para SIS AMERINST y vuelve a intentar.',
       ),
       MobileScannerErrorCode.unsupported => (
         'Cámara no disponible',

@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/features/credentials/data/credential_pdf_service.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/data/credential_pdf_service.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

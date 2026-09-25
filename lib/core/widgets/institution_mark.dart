@@ -1,3 +1,4 @@
+import 'package:sis_amerinst/core/config/app_brand.dart';
 import 'package:flutter/material.dart';
 
 enum InstitutionMarkVariant { blue, white }
@@ -9,16 +10,16 @@ class InstitutionMark extends StatelessWidget {
     this.variant = InstitutionMarkVariant.blue,
   });
 
-  static const blueAsset = 'assets/branding/baker-mark-blue.png';
-  static const whiteAsset = 'assets/branding/baker-mark-white.png';
-  static const compactAsset = 'assets/branding/baker-app-icon.png';
+  static const blueAsset = AppBrand.crestAsset;
+  static const whiteAsset = AppBrand.crestAsset;
+  static const compactAsset = AppBrand.crestAsset;
 
   final double size;
   final InstitutionMarkVariant variant;
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Unidad Educativa Baker',
+    label: AppBrand.institution,
     image: true,
     child: ClipRRect(
       borderRadius: BorderRadius.circular(size * 0.18),

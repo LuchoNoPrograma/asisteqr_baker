@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/features/credentials/domain/credential_document_generator.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_repository.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_document_generator.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_repository.dart';
 import 'package:flutter/foundation.dart';
 
 enum CredentialsLoadStatus { loading, ready, failure }

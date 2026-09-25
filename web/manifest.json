@@ -1,11 +1,11 @@
 {
-    "name": "AsisteQR Baker",
-    "short_name": "AsisteQR",
+    "name": "SIS AMERINST",
+    "short_name": "SIS AMERINST",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F7F9FB",
-    "theme_color": "#17365F",
-    "description": "Sistema institucional de asistencia de la Unidad Educativa Baker",
+    "theme_color": "#142454",
+    "description": "Sistema institucional de asistencia de la Unidad Educativa Evangélica Metodista AMERINST",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,7 +1,8 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
-import 'package:asisteqr_baker/features/auth/presentation/session_view_model.dart';
+import 'package:sis_amerinst/core/config/app_brand.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/institution_mark.dart';
+import 'package:sis_amerinst/features/auth/presentation/session_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,13 +58,42 @@ class _LoginPageState extends ConsumerState<LoginPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/baker-campus.webp',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            filterQuality: FilterQuality.medium,
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.navyDark, AppColors.navy],
+              ),
+            ),
           ),
-          const ColoredBox(color: Color(0x6617365F)),
+          if (desktop)
+            Positioned(
+              left: size.width * .07,
+              top: 0,
+              bottom: 0,
+              width: size.width * .32,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InstitutionMark(size: (size.width * .24).clamp(160, 300)),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'MENTE · ALMA · CUERPO',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Unidad Educativa Evangélica Metodista\nAMERINST · Cobija',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           SafeArea(
             child: Align(
               alignment: desktop ? Alignment.centerRight : Alignment.center,
@@ -112,10 +142,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Align(child: InstitutionMark(size: 64)),
+                                const Align(child: InstitutionMark(size: 88)),
                                 const SizedBox(height: 18),
                                 Text(
-                                  'AsisteQR Baker',
+                                  AppBrand.name,
                                   textAlign: TextAlign.center,
                                   style: Theme.of(
                                     context,

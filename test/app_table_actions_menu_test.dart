@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/core/widgets/app_table_actions_menu.dart';
+import 'package:sis_amerinst/core/widgets/app_table_actions_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

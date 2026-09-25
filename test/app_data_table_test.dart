@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
+import 'package:sis_amerinst/core/widgets/app_data_table.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

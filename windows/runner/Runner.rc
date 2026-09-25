@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Unidad Educativa Baker" "\0"
+            VALUE "CompanyName", "Unidad Educativa Evangélica Metodista AMERINST" "\0"
             VALUE "FileDescription", "Sistema institucional de asistencia" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "asisteqr_baker" "\0"
+            VALUE "InternalName", "sis_amerinst" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.nini. All rights reserved." "\0"
-            VALUE "OriginalFilename", "asisteqr_baker.exe" "\0"
-            VALUE "ProductName", "AsisteQR Baker" "\0"
+            VALUE "OriginalFilename", "sis_amerinst.exe" "\0"
+            VALUE "ProductName", "SIS AMERINST" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

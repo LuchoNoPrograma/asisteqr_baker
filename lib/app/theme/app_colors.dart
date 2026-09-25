@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const navy = Color(0xFF1A365D);
-  static const navyDark = Color(0xFF002045);
+  static const navy = Color(0xFF142454);
+  static const navyDark = Color(0xFF08163D);
+  static const institutionalRed = Color(0xFFC81932);
   static const canvas = Color(0xFFF2F5F7);
   static const surface = Colors.white;
   static const ink = Color(0xFF191C1E);

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
-import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/core/storage/secure_token_store.dart';
+import 'package:sis_amerinst/features/auth/data/auth_repositories.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,7 +23,7 @@ void main() {
     final restored = await repository.restoreSession();
 
     expect(await tokens.readToken(), 'sesion-opaca');
-    expect(signedIn.name, 'Administrador Baker');
+    expect(signedIn.name, 'Administrador AMERINST');
     expect(restored?.role, 'ADMINISTRADOR');
     expect(adapter.sessionAuthorization, 'Bearer sesion-opaca');
   });
@@ -78,9 +78,9 @@ class _AuthAdapter implements HttpClientAdapter {
   );
 
   static const _user = {
-    'id': 'usuario-1',
+    'id': 1,
     'usuario': 'admin',
-    'nombreCompleto': 'Administrador Baker',
+    'nombreCompleto': 'Administrador AMERINST',
     'rol': 'ADMINISTRADOR',
   };
 

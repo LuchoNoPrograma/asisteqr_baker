@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
+import 'package:sis_amerinst/features/reports/domain/report_repository.dart';
 import 'package:flutter/foundation.dart';
 
 enum ReportExportStatus { idle, exporting, success, failure }

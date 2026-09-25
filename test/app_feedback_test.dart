@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/app/theme/app_theme.dart';
-import 'package:asisteqr_baker/core/widgets/app_feedback.dart';
+import 'package:sis_amerinst/app/theme/app_theme.dart';
+import 'package:sis_amerinst/core/widgets/app_feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

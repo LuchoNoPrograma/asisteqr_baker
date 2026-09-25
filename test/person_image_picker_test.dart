@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:asisteqr_baker/features/people/application/person_image_picker.dart';
+import 'package:sis_amerinst/features/people/application/person_image_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 

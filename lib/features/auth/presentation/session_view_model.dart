@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/core/network/session_invalidation_notifier.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
 import 'package:flutter/foundation.dart';
 
 enum SessionStatus { checking, signedOut, authenticating, signedIn }

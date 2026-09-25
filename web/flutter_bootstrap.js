@@ -11,8 +11,7 @@ const legacyWorkerCleanup = 'serviceWorker' in navigator
   : Promise.resolve();
 const institutionalAssets = Promise.all(
   [
-    'assets/assets/images/baker-campus.webp',
-    'assets/assets/branding/baker-mark.png',
+    'assets/assets/branding/amerinst-crest.png',
   ].map(
     (source) =>
       new Promise((resolve) => {

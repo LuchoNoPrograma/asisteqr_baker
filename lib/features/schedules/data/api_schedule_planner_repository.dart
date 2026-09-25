@@ -1,8 +1,8 @@
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_models.dart';
-import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_repository.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_models.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teaching_schedule_models.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/features/schedules/domain/schedule_planner_models.dart';
+import 'package:sis_amerinst/features/schedules/domain/schedule_planner_repository.dart';
+import 'package:sis_amerinst/features/schedules/domain/teacher_schedule_editor_models.dart';
+import 'package:sis_amerinst/features/schedules/domain/teaching_schedule_models.dart';
 import 'package:dio/dio.dart';
 
 class ApiSchedulePlannerRepository implements SchedulePlannerRepository {

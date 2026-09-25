@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_repository.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 

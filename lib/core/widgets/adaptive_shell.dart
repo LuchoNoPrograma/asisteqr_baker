@@ -1,7 +1,8 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/branded_workspace.dart';
-import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
+import 'package:sis_amerinst/core/config/app_brand.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/branded_workspace.dart';
+import 'package:sis_amerinst/core/widgets/institution_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -141,7 +142,7 @@ class AdaptiveShell extends ConsumerWidget {
       builder: (sheetContext) => _MobileMenuSheet(
         items: items,
         location: location,
-        userName: user?.name ?? 'Usuario Baker',
+        userName: user?.name ?? 'Usuario AMERINST',
         userRole: user?.role ?? 'USUARIO',
         onNavigate: (route) {
           Navigator.of(sheetContext).pop();
@@ -208,7 +209,7 @@ class AdaptiveShell extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      title ?? 'AsisteQR Baker',
+                      title ?? AppBrand.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -468,7 +469,7 @@ class _MobileMenuHeader extends StatelessWidget {
                 const SizedBox(width: 10),
                 const Expanded(
                   child: Text(
-                    'AsisteQR Baker',
+                    AppBrand.name,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 17,
@@ -694,7 +695,7 @@ class _DesktopNavigationState extends ConsumerState<_DesktopNavigation> {
                     InstitutionMark(size: 28),
                     SizedBox(width: 10),
                     Text(
-                      'AsisteQR Baker',
+                      AppBrand.name,
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ],
@@ -719,7 +720,7 @@ class _DesktopNavigationState extends ConsumerState<_DesktopNavigation> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user?.name ?? 'Administrador Baker',
+                            user?.name ?? 'Administrador AMERINST',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

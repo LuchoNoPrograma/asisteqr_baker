@@ -1,4 +1,9 @@
-# AsisteQR Baker
+# SIS AMERINST
+
+Identidad institucional de la Unidad Educativa Evangélica Metodista AMERINST,
+Cobija. El escudo y los recursos activos están en `assets/branding/`; los textos
+compartidos se definen en `lib/core/config/app_brand.dart`.
+Ver [informe del cambio de identidad](docs/IDENTIDAD_SIS_AMERINST.md).
 
 Aplicación Flutter responsive para registrar asistencia mediante QR, verificar la identidad del estudiante y consultar reportes protegidos por rol. El regente opera el escáner o el ingreso manual y registra una asistencia por estudiante, fecha y jornada; el docente conserva acceso de consulta.
 
@@ -36,6 +41,21 @@ flutter run \
 Para un teléfono Android físico, define una URL HTTPS o una IP local alcanzable para la API; `10.0.2.2` solo corresponde al emulador.
 
 - APK: `build/app/outputs/flutter-apk/app-debug.apk`
+
+## APK release de produccion
+
+La entrega Android se genera siempre contra la API productiva mediante el
+script del repositorio:
+
+```bash
+./scripts/build_android_release.sh
+```
+
+El script comprueba la salud de Koyeb, ejecuta `flutter pub get` y
+`flutter analyze`, compila con `API_BASE_URL` productiva e informa la ruta,
+version, firma, tamano y SHA-256 de la APK. Requiere la configuracion local e
+ignorada por Git de `android/key.properties`. Aunque la aplicacion conserva la
+misma URL como salvaguarda en modo release, no omitas el script en una entrega.
 
 La vista de reportes proyecta la cohorte histórica por matrícula, fecha lectiva
 y jornada vigentes, incluyendo periodos cerrados y días no lectivos del

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/features/reports/domain/report_repository.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/features/reports/domain/report_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:intl/intl.dart';
@@ -76,7 +76,7 @@ class ApiReportRepository implements ReportRepository {
         throw const ReportExportException('El reporte llegó vacío.');
       }
       return FileSaver.instance.saveFile(
-        name: 'asisteqr_${format.format(from)}_${format.format(to)}',
+        name: 'sis_amerinst_${format.format(from)}_${format.format(to)}',
         bytes: Uint8List.fromList(bytes),
         fileExtension: 'pdf',
         mimeType: MimeType.pdf,

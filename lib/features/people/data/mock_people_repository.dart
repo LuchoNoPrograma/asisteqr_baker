@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/features/people/domain/people_models.dart';
-import 'package:asisteqr_baker/features/people/domain/people_repository.dart';
+import 'package:sis_amerinst/features/people/domain/people_models.dart';
+import 'package:sis_amerinst/features/people/domain/people_repository.dart';
 
 class MockPeopleRepository implements PeopleRepository {
   final courses = const [
@@ -28,7 +28,7 @@ class MockPeopleRepository implements PeopleRepository {
       lastNames: 'Rodríguez Flores',
       specialty: 'Matemática y Física',
       documentNumber: '4567890',
-      email: 'm.rodriguez@baker.edu.bo',
+      email: 'm.rodriguez@example.edu.bo',
       phone: '70112233',
       status: 'ACTIVO',
     ),

@@ -1,8 +1,8 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/app_person_image.dart';
-import 'package:asisteqr_baker/core/widgets/status_badge.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/app_person_image.dart';
+import 'package:sis_amerinst/core/widgets/status_badge.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

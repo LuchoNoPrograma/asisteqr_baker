@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_repository.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_repository.dart';
 
 class MockCredentialRepository implements CredentialRepository {
   static const _entries = [

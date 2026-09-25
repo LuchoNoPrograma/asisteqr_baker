@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/core/storage/secure_token_store.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
 import 'package:dio/dio.dart';
 
 class MockAuthRepository implements AuthRepository {
@@ -30,7 +30,7 @@ class MockAuthRepository implements AuthRepository {
     }
     return _session = const SessionUser(
       id: 1,
-      name: 'Administrador Baker',
+      name: 'Administrador AMERINST',
       role: 'ADMINISTRADOR',
     );
   }

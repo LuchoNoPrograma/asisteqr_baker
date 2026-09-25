@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_models.dart';
+import 'package:sis_amerinst/features/schedules/domain/teacher_schedule_editor_models.dart';
 
 class AcademicAssignment {
   const AcademicAssignment({

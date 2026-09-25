@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:asisteqr_baker/features/people/domain/people_models.dart';
-import 'package:asisteqr_baker/features/people/domain/people_repository.dart';
+import 'package:sis_amerinst/features/people/domain/people_models.dart';
+import 'package:sis_amerinst/features/people/domain/people_repository.dart';
 import 'package:flutter/foundation.dart';
 
 class StudentsViewModel extends ChangeNotifier {

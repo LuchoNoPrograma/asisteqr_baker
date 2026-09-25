@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/branded_workspace.dart';
-import 'package:asisteqr_baker/core/widgets/institution_mark.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/branded_workspace.dart';
+import 'package:sis_amerinst/core/widgets/institution_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -41,7 +41,10 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('Unidad Educativa Baker'), findsNothing);
+    expect(
+      find.bySemanticsLabel('Unidad Educativa Evangélica Metodista AMERINST'),
+      findsNothing,
+    );
     expect(
       find.byWidgetPredicate(
         (widget) => widget is IgnorePointer && widget.ignoring,

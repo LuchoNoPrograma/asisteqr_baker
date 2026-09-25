@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/app/app.dart';
+import 'package:sis_amerinst/app/app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,10 +13,10 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.3;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await tester.pumpWidget(const ProviderScope(child: AsisteQrApp()));
+    await tester.pumpWidget(const ProviderScope(child: SisAmerinstApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('AsisteQR Baker'), findsOneWidget);
+    expect(find.text('SIS AMERINST'), findsOneWidget);
     expect(find.text('Ingresar'), findsOneWidget);
     expect(find.text('Usuario'), findsOneWidget);
     expect(find.bySemanticsLabel('Usuario'), findsOneWidget);

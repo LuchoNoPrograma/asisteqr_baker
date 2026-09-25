@@ -1,9 +1,9 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/app/theme/app_theme.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_repository.dart';
-import 'package:asisteqr_baker/features/credentials/presentation/credentials_page.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/app/theme/app_theme.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_repository.dart';
+import 'package:sis_amerinst/features/credentials/presentation/credentials_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

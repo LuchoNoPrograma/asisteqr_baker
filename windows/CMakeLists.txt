@@ -1,10 +1,10 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(asisteqr_baker LANGUAGES CXX)
+project(sis_amerinst LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "asisteqr_baker")
+set(BINARY_NAME "sis_amerinst")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -55,6 +55,8 @@ add_subdirectory("runner")
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+# Keep the existing Credential Manager encryption key when renaming the binary.
+set(STORAGE_PREFIX "asisteqr_baker")
 include(flutter/generated_plugins.cmake)
 
 

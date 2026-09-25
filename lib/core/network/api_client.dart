@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/core/config/app_config.dart';
-import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
-import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
+import 'package:sis_amerinst/core/config/app_config.dart';
+import 'package:sis_amerinst/core/network/session_invalidation_notifier.dart';
+import 'package:sis_amerinst/core/storage/secure_token_store.dart';
 import 'package:dio/dio.dart';
 
 class ApiClient {

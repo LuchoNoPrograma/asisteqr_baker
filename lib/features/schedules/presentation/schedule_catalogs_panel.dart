@@ -1,9 +1,9 @@
-import 'package:asisteqr_baker/app/theme/app_colors.dart';
-import 'package:asisteqr_baker/core/widgets/app_data_table.dart';
-import 'package:asisteqr_baker/core/widgets/app_dialog_header.dart';
-import 'package:asisteqr_baker/core/widgets/app_table_actions_menu.dart';
-import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_models.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_models.dart';
+import 'package:sis_amerinst/app/theme/app_colors.dart';
+import 'package:sis_amerinst/core/widgets/app_data_table.dart';
+import 'package:sis_amerinst/core/widgets/app_dialog_header.dart';
+import 'package:sis_amerinst/core/widgets/app_table_actions_menu.dart';
+import 'package:sis_amerinst/features/schedules/domain/schedule_planner_models.dart';
+import 'package:sis_amerinst/features/schedules/domain/teacher_schedule_editor_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

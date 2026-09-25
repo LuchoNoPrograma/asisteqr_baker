@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
-import 'package:asisteqr_baker/features/courses/data/api_course_repository.dart';
-import 'package:asisteqr_baker/features/courses/domain/course_repository.dart';
-import 'package:asisteqr_baker/features/people/data/api_people_repository.dart';
-import 'package:asisteqr_baker/features/people/domain/people_repository.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/core/storage/secure_token_store.dart';
+import 'package:sis_amerinst/features/courses/data/api_course_repository.dart';
+import 'package:sis_amerinst/features/courses/domain/course_repository.dart';
+import 'package:sis_amerinst/features/people/data/api_people_repository.dart';
+import 'package:sis_amerinst/features/people/domain/people_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:asisteqr_baker/features/courses/domain/course_models.dart';
-import 'package:asisteqr_baker/features/courses/domain/course_repository.dart';
-import 'package:asisteqr_baker/features/courses/presentation/courses_view_model.dart';
+import 'package:sis_amerinst/features/courses/domain/course_models.dart';
+import 'package:sis_amerinst/features/courses/domain/course_repository.dart';
+import 'package:sis_amerinst/features/courses/presentation/courses_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

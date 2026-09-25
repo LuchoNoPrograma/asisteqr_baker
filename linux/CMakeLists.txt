@@ -4,9 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "asisteqr_baker")
+set(BINARY_NAME "sis_amerinst")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
+# Keep the libsecret namespace and desktop application identity on upgrades.
 set(APPLICATION_ID "com.nini.asisteqr_baker")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent

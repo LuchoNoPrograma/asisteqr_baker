@@ -1,7 +1,7 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/features/attendance/data/mock_attendance_repository.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
-import 'package:asisteqr_baker/features/attendance/presentation/student_history_page.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/features/attendance/data/mock_attendance_repository.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/attendance/presentation/student_history_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

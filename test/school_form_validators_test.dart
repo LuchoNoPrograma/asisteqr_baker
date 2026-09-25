@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/core/validation/school_form_validators.dart';
+import 'package:sis_amerinst/core/validation/school_form_validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -40,7 +40,7 @@ void main() {
     );
     expect(
       SchoolFormValidators.normalizeLower('  DOCENTE@BAKER.EDU.BO  '),
-      'docente@baker.edu.bo',
+      'docente@example.edu.bo',
     );
   });
 }

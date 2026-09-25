@@ -1,5 +1,5 @@
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
-import 'package:asisteqr_baker/features/attendance/domain/attendance_repository.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_repository.dart';
 
 class MockAttendanceRepository implements AttendanceRepository {
   MockAttendanceRepository({
@@ -134,7 +134,7 @@ class MockAttendanceRepository implements AttendanceRepository {
     if (token.contains('INVALIDO') || token.contains('INVALID')) {
       throw const AttendanceException(
         AttendanceFailureKind.invalidQr,
-        'El código QR no está registrado en AsisteQR Baker.',
+        'El código QR no está registrado en SIS AMERINST.',
       );
     }
     if (token.contains('DAÑADO') || token.contains('DAMAGED')) {

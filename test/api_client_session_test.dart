@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/core/network/session_invalidation_notifier.dart';
-import 'package:asisteqr_baker/core/storage/secure_token_store.dart';
-import 'package:asisteqr_baker/features/auth/domain/auth_repository.dart';
-import 'package:asisteqr_baker/features/auth/presentation/session_view_model.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/core/network/session_invalidation_notifier.dart';
+import 'package:sis_amerinst/core/storage/secure_token_store.dart';
+import 'package:sis_amerinst/features/auth/domain/auth_repository.dart';
+import 'package:sis_amerinst/features/auth/presentation/session_view_model.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -67,7 +67,7 @@ class _RestoredAuthRepository implements AuthRepository {
   @override
   Future<SessionUser?> restoreSession() async => const SessionUser(
     id: 1,
-    name: 'Administrador Baker',
+    name: 'Administrador AMERINST',
     role: 'ADMINISTRADOR',
   );
 

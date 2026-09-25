@@ -1,8 +1,9 @@
+import 'package:sis_amerinst/core/config/app_brand.dart';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:asisteqr_baker/features/credentials/domain/credential_document_generator.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_document_generator.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -26,7 +27,7 @@ class CredentialPdfService implements CredentialDocumentGenerator {
         : ' ${managementYears.join(', ')}';
     final document = pw.Document(
       title: 'Credenciales estudiantiles$managementLabel',
-      author: 'AsisteQR Baker',
+      author: AppBrand.name,
       subject: 'Credenciales QR listas para imprimir',
     );
     final regularFont = pw.Font.ttf(
@@ -36,17 +37,13 @@ class CredentialPdfService implements CredentialDocumentGenerator {
       await rootBundle.load('assets/fonts/LiberationSans-Bold.ttf'),
     );
     final blueMark = pw.MemoryImage(
-      _bytes(await rootBundle.load('assets/branding/baker-mark-blue.png')),
+      _bytes(await rootBundle.load(AppBrand.crestAsset)),
     );
     final frontTemplate = pw.MemoryImage(
-      _bytes(
-        await rootBundle.load('assets/branding/credential-front-template.png'),
-      ),
+      _bytes(await rootBundle.load(AppBrand.frontAsset)),
     );
     final backTemplate = pw.MemoryImage(
-      _bytes(
-        await rootBundle.load('assets/branding/credential-back-template.png'),
-      ),
+      _bytes(await rootBundle.load(AppBrand.backAsset)),
     );
     final theme = pw.ThemeData.withFont(base: regularFont, bold: boldFont);
     final photos = <String, pw.MemoryImage>{};
@@ -449,10 +446,7 @@ class CredentialPdfService implements CredentialDocumentGenerator {
                               'Presenta la credencial al ingresar.',
                             ),
                             pw.SizedBox(height: 3),
-                            _instruction(
-                              '02',
-                              'Escanea el QR solo con AsisteQR Baker.',
-                            ),
+                            _instruction('02', AppBrand.credentialInstruction),
                             pw.Spacer(),
                             pw.Row(
                               children: [
@@ -536,16 +530,16 @@ class CredentialPdfService implements CredentialDocumentGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'UNIDAD EDUCATIVA',
+                'U.E. EVANGÉLICA METODISTA',
                 style: pw.TextStyle(
                   color: _cyanDark,
-                  fontSize: 4.8,
+                  fontSize: 3.7,
                   fontWeight: pw.FontWeight.bold,
                   lineSpacing: 0,
                 ),
               ),
               pw.Text(
-                'ADVENTISTA BAKER',
+                AppBrand.credentialInstitution,
                 style: pw.TextStyle(
                   color: _navy,
                   fontSize: 5.4,
@@ -564,6 +558,7 @@ class CredentialPdfService implements CredentialDocumentGenerator {
               child: pw.Container(
                 width: double.infinity,
                 height: 4.8 * PdfPageFormat.mm,
+                color: _cyan,
                 padding: pw.EdgeInsets.symmetric(
                   horizontal: 3 * PdfPageFormat.mm,
                 ),
@@ -685,11 +680,11 @@ class CredentialPdfService implements CredentialDocumentGenerator {
     }
   }
 
-  static const _navy = PdfColor.fromInt(0xFF0B2A50);
-  static const _royalBlue = PdfColor.fromInt(0xFF1727C9);
-  static const _cyan = PdfColor.fromInt(0xFF08A7D8);
-  static const _cyanDark = PdfColor.fromInt(0xFF087AA7);
-  static const _cyanPale = PdfColor.fromInt(0xFFE5F6FC);
+  static const _navy = PdfColor.fromInt(0xFF08163D);
+  static const _royalBlue = PdfColor.fromInt(0xFF142454);
+  static const _cyan = PdfColor.fromInt(0xFFC81932);
+  static const _cyanDark = PdfColor.fromInt(0xFF9E1428);
+  static const _cyanPale = PdfColor.fromInt(0xFFF9ECEF);
   static const _ink = PdfColor.fromInt(0xFF142033);
   static const _muted = PdfColor.fromInt(0xFF5B6470);
   static const _border = PdfColor.fromInt(0xFFD8DEE7);

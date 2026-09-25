@@ -1,7 +1,7 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/features/auth/data/auth_repositories.dart';
-import 'package:asisteqr_baker/features/courses/data/mock_course_repository.dart';
-import 'package:asisteqr_baker/features/reports/presentation/courses_page.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/features/auth/data/auth_repositories.dart';
+import 'package:sis_amerinst/features/courses/data/mock_course_repository.dart';
+import 'package:sis_amerinst/features/reports/presentation/courses_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

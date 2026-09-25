@@ -1,6 +1,6 @@
-import 'package:asisteqr_baker/core/network/api_client.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_models.dart';
-import 'package:asisteqr_baker/features/credentials/domain/credential_repository.dart';
+import 'package:sis_amerinst/core/network/api_client.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_models.dart';
+import 'package:sis_amerinst/features/credentials/domain/credential_repository.dart';
 
 class ApiCredentialRepository implements CredentialRepository {
   ApiCredentialRepository(this._client);

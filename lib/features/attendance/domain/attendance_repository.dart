@@ -1,4 +1,4 @@
-import 'package:asisteqr_baker/features/attendance/domain/attendance_models.dart';
+import 'package:sis_amerinst/features/attendance/domain/attendance_models.dart';
 
 abstract interface class AttendanceRepository {
   Future<DashboardSummary> getDashboard();

@@ -1,8 +1,8 @@
-import 'package:asisteqr_baker/app/providers.dart';
-import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_models.dart';
-import 'package:asisteqr_baker/features/schedules/domain/schedule_planner_repository.dart';
-import 'package:asisteqr_baker/features/schedules/domain/teacher_schedule_editor_models.dart';
-import 'package:asisteqr_baker/features/schedules/presentation/teaching_schedules_page.dart';
+import 'package:sis_amerinst/app/providers.dart';
+import 'package:sis_amerinst/features/schedules/domain/schedule_planner_models.dart';
+import 'package:sis_amerinst/features/schedules/domain/schedule_planner_repository.dart';
+import 'package:sis_amerinst/features/schedules/domain/teacher_schedule_editor_models.dart';
+import 'package:sis_amerinst/features/schedules/presentation/teaching_schedules_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
